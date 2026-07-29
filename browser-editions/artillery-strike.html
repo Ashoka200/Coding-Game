@@ -1,0 +1,420 @@
+<title>Artillery Strike — Stage 1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground: #0D120C;
+    --panel: #151C13;
+    --panel-edge: #26301F;
+    --amber: #F2A93B;
+    --amber-dim: #A87A2E;
+    --khaki: #CFC9B4;
+    --khaki-dim: #8A8571;
+    --red: #E2483D;
+    --olive: #94A55C;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  html { background: var(--ground); }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--khaki);
+    background:
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.14) 3px 4px),
+      var(--ground);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .console {
+    width: 100%;
+    max-width: 30rem;
+    padding: 1rem 1rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .9rem;
+  }
+
+  /* ---- command plate ---- */
+  header {
+    border: 1px solid var(--panel-edge);
+    border-left: 4px solid var(--amber);
+    background: var(--panel);
+    padding: .8rem 1rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .65rem;
+    letter-spacing: .22em;
+    color: var(--amber-dim);
+    text-transform: uppercase;
+    margin: 0 0 .25rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    text-wrap: balance;
+  }
+  .brief {
+    margin: .4rem 0 0;
+    font-size: .82rem;
+    line-height: 1.5;
+    color: var(--khaki-dim);
+  }
+
+  /* ---- status row ---- */
+  .status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .75rem;
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .08em;
+  }
+  .status .label { color: var(--khaki-dim); text-transform: uppercase; }
+  .shells { display: inline-flex; gap: .3rem; vertical-align: middle; margin-left: .4rem; }
+  .shell {
+    width: .5rem; height: 1.05rem;
+    background: var(--amber);
+    clip-path: polygon(50% 0, 100% 28%, 100% 100%, 0 100%, 0 28%);
+  }
+  .shell.spent { background: #3A4230; }
+  .score { color: var(--khaki); font-variant-numeric: tabular-nums; }
+
+  /* ---- battle line ---- */
+  .battleline {
+    border: 1px solid var(--panel-edge);
+    background: var(--panel);
+    padding: 1.1rem .9rem 1.5rem;
+  }
+  .battleline .label {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--khaki-dim);
+    margin: 0 0 1.4rem;
+  }
+  .track {
+    position: relative;
+    height: 4px;
+    background: #2C3524;
+    border-radius: 2px;
+  }
+  .tick {
+    position: absolute;
+    top: 8px;
+    font-family: var(--mono);
+    font-size: .6rem;
+    color: var(--khaki-dim);
+    transform: translateX(-50%);
+    font-variant-numeric: tabular-nums;
+  }
+  .marker {
+    position: absolute;
+    top: 50%;
+    width: .65rem; height: .65rem;
+    transform: translate(-50%, -50%) rotate(45deg);
+    background: var(--khaki-dim);
+  }
+  .marker.high { background: var(--red); }
+  .marker.low  { background: var(--olive); }
+  .marker.bunker {
+    width: .9rem; height: .9rem;
+    background: var(--amber);
+    box-shadow: 0 0 12px rgba(242,169,59,.8);
+  }
+  .legend {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.6rem;
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .06em;
+    color: var(--khaki-dim);
+  }
+  .legend span::before {
+    content: "";
+    display: inline-block;
+    width: .5rem; height: .5rem;
+    transform: rotate(45deg);
+    margin-right: .4rem;
+  }
+  .legend .l-low::before  { background: var(--olive); }
+  .legend .l-high::before { background: var(--red); }
+  .legend .l-bunker::before { background: var(--amber); }
+
+  /* ---- radar log ---- */
+  .log {
+    border: 1px solid var(--panel-edge);
+    background: #0A0E09;
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.65;
+    padding: .8rem .9rem;
+    height: 11rem;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) { .log { scroll-behavior: auto; } }
+  .log p { margin: 0 0 .15rem; overflow-wrap: anywhere; }
+  .log .radar  { color: var(--amber); }
+  .log .warn   { color: var(--red); }
+  .log .good   { color: var(--olive); }
+  .log .sys    { color: var(--khaki-dim); }
+
+  /* ---- fire control ---- */
+  .firecontrol { display: flex; gap: .6rem; }
+  .firecontrol input {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--mono);
+    font-size: 1.15rem;
+    padding: .8rem .9rem;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    color: var(--khaki);
+    border-radius: 0;
+  }
+  .firecontrol input::placeholder { color: var(--khaki-dim); }
+  .firecontrol input:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  button {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: .95rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    padding: .8rem 1.4rem;
+    background: var(--amber);
+    color: #1B1406;
+    border: none;
+    cursor: pointer;
+    border-radius: 0;
+  }
+  button:active { background: var(--amber-dim); }
+  button.secondary {
+    background: transparent;
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+    width: 100%;
+  }
+  #newMission { display: none; }
+
+  /* ---- field manual note ---- */
+  details {
+    border: 1px dashed var(--panel-edge);
+    padding: .7rem .9rem;
+    font-size: .8rem;
+    line-height: 1.55;
+    color: var(--khaki-dim);
+  }
+  summary {
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--amber-dim);
+  }
+  details p { max-width: 65ch; }
+  code {
+    font-family: var(--mono);
+    color: var(--khaki);
+    background: #1C2418;
+    padding: .05rem .3rem;
+  }
+
+  @keyframes hitflash { 0% { background: rgba(242,169,59,.35); } 100% { background: transparent; } }
+  .flash { animation: hitflash .6s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .flash { animation: none; } }
+</style>
+
+<div class="console">
+  <header>
+    <p class="eyebrow">Operation: Code Warrior — Stage 1</p>
+    <h1>Artillery Strike</h1>
+    <p class="brief">An enemy bunker is dug in somewhere on the battle line (1–100).
+    You have 7 shells. Radar reports after every shot. Destroy it before you run dry.</p>
+  </header>
+
+  <div class="status">
+    <span class="label">Ammo<span class="shells" id="shells"></span></span>
+    <span class="score" id="score">VICTORIES 0 / BATTLES 0</span>
+  </div>
+
+  <div class="battleline">
+    <p class="label">Battle line · grid 1–100</p>
+    <div class="track" id="track">
+      <span class="tick" style="left:0%">1</span>
+      <span class="tick" style="left:25%">25</span>
+      <span class="tick" style="left:50%">50</span>
+      <span class="tick" style="left:75%">75</span>
+      <span class="tick" style="left:100%">100</span>
+    </div>
+    <div class="legend">
+      <span class="l-low">fell short</span>
+      <span class="l-high">overshot</span>
+      <span class="l-bunker">bunker</span>
+    </div>
+  </div>
+
+  <div class="log" id="log" aria-live="polite"></div>
+
+  <div class="firecontrol">
+    <input id="coord" type="text" inputmode="numeric" placeholder="1–100" autocomplete="off"
+           aria-label="Fire coordinate, 1 to 100">
+    <button id="fire">Fire</button>
+  </div>
+  <button id="newMission" class="secondary">New fire mission</button>
+
+  <details>
+    <summary>Field manual · the code behind this</summary>
+    <p>This is the exact same game as <code>stage1_artillery_strike.py</code>, the Python
+    file in your campaign kit. Every radar message you see is an <code>if / elif / else</code>
+    decision. The shell counter is a <code>variable</code>. The round is a <code>while</code>
+    loop. And try typing <code>banana</code> as a coordinate — the polite refusal you get is
+    <strong>input validation</strong>, your first piece of security code. Programs that skip
+    that check are the ones hackers break.</p>
+  </details>
+</div>
+
+<script>
+  var MAX_SHELLS = 7;
+  var bunker, shells, shots, victories = 0, battles = 0, roundOver = false;
+
+  var logEl = document.getElementById("log");
+  var shellsEl = document.getElementById("shells");
+  var scoreEl = document.getElementById("score");
+  var trackEl = document.getElementById("track");
+  var coordEl = document.getElementById("coord");
+  var fireBtn = document.getElementById("fire");
+  var newBtn = document.getElementById("newMission");
+
+  function say(text, cls) {
+    var p = document.createElement("p");
+    p.className = cls || "sys";
+    p.textContent = text;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function drawShells() {
+    shellsEl.innerHTML = "";
+    for (var i = 0; i < MAX_SHELLS; i++) {
+      var s = document.createElement("span");
+      s.className = "shell" + (i < shells ? "" : " spent");
+      shellsEl.appendChild(s);
+    }
+  }
+
+  function drawScore() {
+    scoreEl.textContent = "VICTORIES " + victories + " / BATTLES " + battles;
+  }
+
+  function plot(pos, cls) {
+    var m = document.createElement("span");
+    m.className = "marker " + cls;
+    m.style.left = ((pos - 1) / 99 * 100) + "%";
+    trackEl.appendChild(m);
+  }
+
+  function clearMarkers() {
+    var ms = trackEl.querySelectorAll(".marker");
+    for (var i = 0; i < ms.length; i++) ms[i].remove();
+  }
+
+  function startRound() {
+    bunker = Math.floor(Math.random() * 100) + 1;
+    shells = MAX_SHELLS;
+    shots = 0;
+    roundOver = false;
+    clearMarkers();
+    drawShells();
+    coordEl.value = "";
+    coordEl.disabled = false;
+    fireBtn.style.display = "";
+    newBtn.style.display = "none";
+    say("RADAR: Enemy bunker detected on the battle line (1-100).", "radar");
+    say("You have " + shells + " shells. Make them count, Commander.");
+    coordEl.focus();
+  }
+
+  function endRound(won) {
+    roundOver = true;
+    battles++;
+    if (won) victories++;
+    drawScore();
+    plot(bunker, "bunker");
+    coordEl.disabled = true;
+    fireBtn.style.display = "none";
+    newBtn.style.display = "block";
+    say("CAMPAIGN SCORE: " + victories + " victories in " + battles + " battles.", "sys");
+  }
+
+  function fire() {
+    if (roundOver) return;
+    var raw = coordEl.value.trim();
+    coordEl.value = "";
+    coordEl.focus();
+
+    // INPUT VALIDATION — same lesson as the Python try/except.
+    var target = parseInt(raw, 10);
+    if (raw === "" || isNaN(target) || String(target) !== raw) {
+      say("FIRE CONTROL: Numbers only, Commander. Shell not wasted.", "warn");
+      return;
+    }
+    if (target < 1 || target > 100) {
+      say("FIRE CONTROL: Position must be 1-100. Shell not wasted.", "warn");
+      return;
+    }
+
+    shells--;
+    shots++;
+    drawShells();
+
+    if (target === bunker) {
+      plot(target, "bunker");
+      say("DIRECT HIT at " + target + "! Bunker destroyed in " + shots + " shots.", "good");
+      document.body.classList.remove("flash");
+      void document.body.offsetWidth;
+      document.body.classList.add("flash");
+      endRound(true);
+      return;
+    }
+
+    if (target > bunker) {
+      plot(target, "high");
+      say("RADAR: " + target + " OVERSHOT — the bunker is CLOSER than that.", "radar");
+    } else {
+      plot(target, "low");
+      say("RADAR: " + target + " FELL SHORT — the bunker is FARTHER than that.", "radar");
+    }
+
+    if (shells === 1) say("LAST SHELL. Steady, Commander...", "warn");
+
+    if (shells === 0) {
+      say("OUT OF AMMO. The bunker survives... this time.", "warn");
+      say("Intel report: the bunker was at position " + bunker + ".", "sys");
+      endRound(false);
+    }
+  }
+
+  fireBtn.addEventListener("click", fire);
+  coordEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") fire();
+  });
+  newBtn.addEventListener("click", startRound);
+
+  say("=== ARTILLERY STRIKE · FIELD TERMINAL ===", "sys");
+  drawScore();
+  startRound();
+</script>

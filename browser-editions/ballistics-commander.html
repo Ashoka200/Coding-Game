@@ -1,0 +1,488 @@
+<title>Ballistics Commander — Velocity Edition</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground: #0D120C;
+    --panel: #151C13;
+    --panel-edge: #26301F;
+    --amber: #F2A93B;
+    --amber-dim: #A87A2E;
+    --khaki: #CFC9B4;
+    --khaki-dim: #8A8571;
+    --red: #E2483D;
+    --olive: #94A55C;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  html { background: var(--ground); }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--khaki);
+    background:
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.14) 3px 4px),
+      var(--ground);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .console {
+    width: 100%;
+    max-width: 34rem;
+    padding: 1rem 1rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .9rem;
+  }
+  header {
+    border: 1px solid var(--panel-edge);
+    border-left: 4px solid var(--amber);
+    background: var(--panel);
+    padding: .8rem 1rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .65rem;
+    letter-spacing: .22em;
+    color: var(--amber-dim);
+    text-transform: uppercase;
+    margin: 0 0 .25rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--amber);
+    text-wrap: balance;
+  }
+  .brief { margin: .4rem 0 0; font-size: .82rem; line-height: 1.5; color: var(--khaki-dim); }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .75rem;
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .08em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hud .label { color: var(--khaki-dim); text-transform: uppercase; }
+  .shells { display: inline-flex; gap: .3rem; vertical-align: middle; margin-left: .4rem; }
+  .shell {
+    width: .5rem; height: 1.05rem;
+    background: var(--amber);
+    clip-path: polygon(50% 0, 100% 28%, 100% 100%, 0 100%, 0 28%);
+  }
+  .shell.spent { background: #3A4230; }
+
+  canvas {
+    width: 100%;
+    display: block;
+    border: 1px solid var(--panel-edge);
+    background: #0A0E09;
+    touch-action: manipulation;
+  }
+
+  .controls {
+    border: 1px solid var(--panel-edge);
+    background: var(--panel);
+    padding: .9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .8rem;
+  }
+  .ctl { display: flex; align-items: center; gap: .8rem; }
+  .ctl label {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--khaki-dim);
+    width: 5.2rem;
+    flex-shrink: 0;
+  }
+  .ctl output {
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: var(--amber);
+    width: 4.6rem;
+    text-align: right;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type=range] {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--amber);
+    height: 2rem;
+  }
+  input[type=range]:focus-visible, button:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  button {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: .95rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    padding: .85rem 1.4rem;
+    background: var(--amber);
+    color: #1B1406;
+    border: none;
+    cursor: pointer;
+    border-radius: 0;
+  }
+  button:active { background: var(--amber-dim); }
+  button:disabled { background: #3A4230; color: #6B7259; cursor: default; }
+  button.secondary {
+    background: transparent;
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+  }
+  #newMission { display: none; }
+
+  .log {
+    border: 1px solid var(--panel-edge);
+    background: #0A0E09;
+    font-family: var(--mono);
+    font-size: .76rem;
+    line-height: 1.6;
+    padding: .7rem .9rem;
+    height: 8.5rem;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) { .log { scroll-behavior: auto; } }
+  .log p { margin: 0 0 .15rem; overflow-wrap: anywhere; }
+  .log .radar { color: var(--amber); }
+  .log .warn  { color: var(--red); }
+  .log .good  { color: var(--olive); }
+  .log .sys   { color: var(--khaki-dim); }
+
+  details {
+    border: 1px dashed var(--panel-edge);
+    padding: .7rem .9rem;
+    font-size: .8rem;
+    line-height: 1.55;
+    color: var(--khaki-dim);
+  }
+  summary {
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--amber-dim);
+  }
+  details p { max-width: 65ch; }
+  code { font-family: var(--mono); color: var(--khaki); background: #1C2418; padding: .05rem .3rem; }
+</style>
+
+<div class="console">
+  <header>
+    <p class="eyebrow">Operation: Code Warrior — Ballistics Edition</p>
+    <h1>Ballistics Commander</h1>
+    <p class="brief">Real artillery now, Commander. Set the barrel <strong>angle</strong> and the shell's
+    launch <strong>velocity</strong>, mind the wind, and put a shell on the enemy tank.
+    5 shells per mission. Gravity is not negotiable.</p>
+  </header>
+
+  <div class="hud">
+    <span class="label">Ammo<span class="shells" id="shells"></span></span>
+    <span class="label">Wind <span id="wind" style="color:var(--amber)"></span></span>
+    <span class="label" style="color:var(--khaki)" id="score">W 0 / B 0</span>
+  </div>
+
+  <canvas id="field" width="1000" height="480" aria-label="Battlefield: your gun on the left, enemy tank to the right"></canvas>
+
+  <div class="controls">
+    <div class="ctl">
+      <label for="angle">Angle</label>
+      <input type="range" id="angle" min="15" max="80" value="45" step="1">
+      <output id="angleOut">45°</output>
+    </div>
+    <div class="ctl">
+      <label for="power">Velocity</label>
+      <input type="range" id="power" min="30" max="110" value="70" step="1">
+      <output id="powerOut">70 m/s</output>
+    </div>
+    <div style="display:flex; gap:.6rem;">
+      <button id="fire" style="flex:1">Fire</button>
+      <button id="newMission" class="secondary" style="flex:1">New mission</button>
+    </div>
+  </div>
+
+  <div class="log" id="log" aria-live="polite"></div>
+
+  <details>
+    <summary>Field manual · the physics &amp; the code</summary>
+    <p><strong>VELOCITY</strong> is speed <em>with a direction</em>. Your slider sets the launch speed;
+    the angle splits it into two variables: <code>vx</code> (sideways speed) and <code>vy</code> (upward speed).</p>
+    <p>Then a <strong>GAME LOOP</strong> runs 60 times a second. Each tick it repeats three orders:
+    move the shell by its velocity (<code>x += vx</code>, <code>y += vy</code>),
+    let <strong>GRAVITY</strong> eat some upward speed (<code>vy -= 9.8 × dt</code>),
+    and let wind nudge <code>vx</code>. That's the whole trick — every smooth game animation you've
+    ever seen is just variables being updated in a fast loop, exactly like the loops you met in Stage 1.</p>
+    <p>Watch the tracer dots: they curve because <code>vy</code> shrinks every tick. That curve is
+    gravity, drawn in code.</p>
+  </details>
+</div>
+
+<script>
+  // ---- world constants -------------------------------------------------
+  var WORLD_W = 500;        // battlefield width in metres
+  var GRAVITY = 9.8;        // m/s^2, pulls vy down every tick
+  var MAX_SHELLS = 5;
+  var GUN_X = 25;           // gun position in metres
+
+  // ---- state -----------------------------------------------------------
+  var targetX, wind, shells, shots, phase; // phase: 'aim' | 'flying' | 'done'
+  var victories = 0, battles = 0;
+  var shell = null;         // {x, y, vx, vy} while flying
+  var trail = [];           // tracer dots of the current shot
+  var oldTrails = [];       // faded trails of previous shots this mission
+  var boom = 0;             // explosion animation frames remaining
+  var boomX = 0, boomY = 0;
+
+  var cv = document.getElementById("field");
+  var cx = cv.getContext("2d");
+  var logEl = document.getElementById("log");
+
+  function $(id) { return document.getElementById(id); }
+
+  function say(text, cls) {
+    var p = document.createElement("p");
+    p.className = cls || "sys";
+    p.textContent = text;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function drawShellsHud() {
+    var el = $("shells");
+    el.innerHTML = "";
+    for (var i = 0; i < MAX_SHELLS; i++) {
+      var s = document.createElement("span");
+      s.className = "shell" + (i < shells ? "" : " spent");
+      el.appendChild(s);
+    }
+  }
+
+  function windText() {
+    if (Math.abs(wind) < 0.5) return "calm";
+    return (wind > 0 ? "→ " : "← ") + Math.abs(wind).toFixed(0) + " m/s";
+  }
+
+  // ---- coordinate mapping: world metres -> canvas pixels ---------------
+  var GROUND_PX = cv.height - 60;
+  function px(mx) { return mx / WORLD_W * cv.width; }
+  function py(my) { return GROUND_PX - my / WORLD_W * cv.width; }
+
+  // ---- drawing ----------------------------------------------------------
+  function draw() {
+    cx.clearRect(0, 0, cv.width, cv.height);
+
+    // distant ridge line
+    cx.strokeStyle = "#1E2619";
+    cx.lineWidth = 2;
+    cx.beginPath();
+    cx.moveTo(0, GROUND_PX - 90);
+    for (var x = 0; x <= cv.width; x += 40) {
+      cx.lineTo(x, GROUND_PX - 90 - 25 * Math.sin(x * 0.013) - 12 * Math.sin(x * 0.031));
+    }
+    cx.stroke();
+
+    // ground
+    cx.fillStyle = "#141A10";
+    cx.fillRect(0, GROUND_PX, cv.width, cv.height - GROUND_PX);
+    cx.strokeStyle = "#2C3524";
+    cx.beginPath(); cx.moveTo(0, GROUND_PX); cx.lineTo(cv.width, GROUND_PX); cx.stroke();
+
+    // range ticks every 100 m
+    cx.fillStyle = "#8A8571";
+    cx.font = "16px ui-monospace, Menlo, monospace";
+    cx.textAlign = "center";
+    for (var m = 100; m < WORLD_W; m += 100) {
+      cx.fillRect(px(m) - 1, GROUND_PX, 2, 8);
+      cx.fillText(m + "m", px(m), GROUND_PX + 30);
+    }
+
+    // old tracer trails, faded
+    cx.fillStyle = "rgba(138,133,113,.28)";
+    oldTrails.forEach(function (t) {
+      t.forEach(function (p) { cx.fillRect(px(p.x) - 1.5, py(p.y) - 1.5, 3, 3); });
+    });
+
+    // current tracer
+    cx.fillStyle = "#F2A93B";
+    trail.forEach(function (p) { cx.fillRect(px(p.x) - 2, py(p.y) - 2, 4, 4); });
+
+    // your gun: base + barrel at chosen angle
+    var ang = +$("angle").value * Math.PI / 180;
+    var gx = px(GUN_X), gy = GROUND_PX;
+    cx.fillStyle = "#94A55C";
+    cx.fillRect(gx - 14, gy - 14, 28, 14);
+    cx.strokeStyle = "#94A55C";
+    cx.lineWidth = 5;
+    cx.beginPath();
+    cx.moveTo(gx, gy - 12);
+    cx.lineTo(gx + Math.cos(ang) * 34, gy - 12 - Math.sin(ang) * 34);
+    cx.stroke();
+
+    // enemy tank
+    var tx = px(targetX);
+    cx.fillStyle = "#E2483D";
+    cx.fillRect(tx - 16, GROUND_PX - 12, 32, 12);       // hull
+    cx.fillRect(tx - 7, GROUND_PX - 20, 14, 9);          // turret
+    cx.fillRect(tx - 26, GROUND_PX - 17, 12, 3);         // barrel (aimed at you, naturally)
+
+    // shell in flight
+    if (shell) {
+      cx.fillStyle = "#FFD98A";
+      cx.beginPath();
+      cx.arc(px(shell.x), py(shell.y), 5, 0, Math.PI * 2);
+      cx.fill();
+    }
+
+    // explosion
+    if (boom > 0) {
+      var r = (16 - boom) * 4;
+      cx.strokeStyle = "rgba(242,169,59," + (boom / 16) + ")";
+      cx.lineWidth = 4;
+      cx.beginPath();
+      cx.arc(boomX, boomY, r, 0, Math.PI * 2);
+      cx.stroke();
+      boom--;
+    }
+
+    // wind arrow top centre
+    cx.fillStyle = "#8A8571";
+    cx.textAlign = "center";
+    cx.fillText("wind " + windText(), cv.width / 2, 28);
+  }
+
+  // ---- THE GAME LOOP ----------------------------------------------------
+  // Runs ~60x per second. Physics only advances while a shell is flying.
+  var last = null;
+  function loop(ts) {
+    if (last === null) last = ts;
+    var dt = Math.min((ts - last) / 1000, 0.05) * 2.4; // time step, sped up 2.4x for snappy play
+    last = ts;
+
+    if (phase === "flying" && shell) {
+      // velocity moves the shell...
+      shell.x += shell.vx * dt;
+      shell.y += shell.vy * dt;
+      // ...gravity eats upward velocity, wind nudges sideways velocity
+      shell.vy -= GRAVITY * dt;
+      shell.vx += wind * 0.12 * dt;
+
+      trail.push({ x: shell.x, y: shell.y });
+
+      // landed?
+      if (shell.y <= 0 && shell.vy < 0) {
+        land(shell.x);
+      } else if (shell.x < -20 || shell.x > WORLD_W + 60) {
+        say("RADAR: Shell left the sector. Lost contact.", "warn");
+        afterShot(false);
+      }
+    }
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function land(x) {
+    boomX = px(x); boomY = GROUND_PX; boom = 16;
+    var miss = x - targetX;
+    if (Math.abs(miss) <= 14) {
+      say("DIRECT HIT at " + x.toFixed(0) + "m! Enemy tank destroyed in " + shots + " shot" + (shots > 1 ? "s" : "") + ".", "good");
+      victories++;
+      endMission(true);
+    } else if (miss > 0) {
+      say("RADAR: Landed " + x.toFixed(0) + "m — OVERSHOT by " + Math.abs(miss).toFixed(0) + "m. Less velocity or lower angle.", "radar");
+      afterShot(true);
+    } else {
+      say("RADAR: Landed " + x.toFixed(0) + "m — FELL SHORT by " + Math.abs(miss).toFixed(0) + "m. More velocity, Commander.", "radar");
+      afterShot(true);
+    }
+  }
+
+  function afterShot(keepTrail) {
+    if (keepTrail && trail.length) oldTrails.push(trail);
+    trail = [];
+    shell = null;
+    if (shells === 0) {
+      say("OUT OF AMMO. The tank rolls on... this time.", "warn");
+      endMission(false);
+    } else {
+      phase = "aim";
+      $("fire").disabled = false;
+      if (shells === 1) say("LAST SHELL. Steady, Commander...", "warn");
+    }
+  }
+
+  function endMission(won) {
+    battles++;
+    $("score").textContent = "W " + victories + " / B " + battles;
+    phase = "done";
+    shell = null;
+    trail = [];
+    $("fire").disabled = true;
+    $("newMission").style.display = "block";
+    say("CAMPAIGN SCORE: " + victories + " victories in " + battles + " battles.", "sys");
+  }
+
+  function fire() {
+    if (phase !== "aim") return;
+    var ang = +$("angle").value * Math.PI / 180;
+    var v = +$("power").value;
+
+    // velocity split into components — THE line this whole game teaches:
+    shell = {
+      x: GUN_X,
+      y: 2,
+      vx: v * Math.cos(ang),
+      vy: v * Math.sin(ang)
+    };
+    shells--;
+    shots++;
+    drawShellsHud();
+    phase = "flying";
+    $("fire").disabled = true;
+    say("FIRE! angle " + $("angle").value + "°, velocity " + v + " m/s  →  vx " +
+        shell.vx.toFixed(0) + ", vy " + shell.vy.toFixed(0), "sys");
+  }
+
+  function startMission() {
+    targetX = 180 + Math.floor(Math.random() * 280);   // 180–460 m out
+    wind = Math.round((Math.random() * 16 - 8));       // -8..+8 m/s
+    shells = MAX_SHELLS;
+    shots = 0;
+    phase = "aim";
+    shell = null;
+    trail = [];
+    oldTrails = [];
+    boom = 0;
+    drawShellsHud();
+    $("wind").textContent = windText();
+    $("fire").disabled = false;
+    $("newMission").style.display = "none";
+    say("RADAR: Enemy tank spotted at " + targetX + "m. Wind " + windText() + ".", "radar");
+    say("5 shells loaded. Angle + velocity, Commander. Gravity does the rest.");
+  }
+
+  // ---- wiring the controls ----------------------------------------------
+  $("angle").addEventListener("input", function () { $("angleOut").textContent = this.value + "°"; });
+  $("power").addEventListener("input", function () { $("powerOut").textContent = this.value + " m/s"; });
+  $("fire").addEventListener("click", fire);
+  $("newMission").addEventListener("click", startMission);
+
+  say("=== BALLISTICS COMMANDER · FIELD TERMINAL ===", "sys");
+  startMission();
+  requestAnimationFrame(loop);
+</script>
