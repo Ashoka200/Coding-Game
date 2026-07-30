@@ -1,0 +1,512 @@
+<title>Trench Defense — First Person</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground: #0D120C;
+    --panel: #151C13;
+    --panel-edge: #26301F;
+    --amber: #F2A93B;
+    --amber-dim: #A87A2E;
+    --khaki: #CFC9B4;
+    --khaki-dim: #8A8571;
+    --red: #E2483D;
+    --olive: #94A55C;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  html { background: var(--ground); }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--khaki);
+    background:
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.14) 3px 4px),
+      var(--ground);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .console {
+    width: 100%;
+    max-width: 36rem;
+    padding: 1rem 1rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .9rem;
+  }
+  header {
+    border: 1px solid var(--panel-edge);
+    border-left: 4px solid var(--amber);
+    background: var(--panel);
+    padding: .8rem 1rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .65rem;
+    letter-spacing: .22em;
+    color: var(--amber-dim);
+    text-transform: uppercase;
+    margin: 0 0 .25rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--amber);
+    text-wrap: balance;
+  }
+  .brief { margin: .4rem 0 0; font-size: .82rem; line-height: 1.5; color: var(--khaki-dim); }
+
+  .stage { position: relative; }
+  canvas {
+    width: 100%;
+    display: block;
+    border: 1px solid var(--panel-edge);
+    background: #0A0E09;
+    touch-action: manipulation;
+    cursor: crosshair;
+  }
+
+  .log {
+    border: 1px solid var(--panel-edge);
+    background: #0A0E09;
+    font-family: var(--mono);
+    font-size: .76rem;
+    line-height: 1.6;
+    padding: .7rem .9rem;
+    height: 7rem;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) { .log { scroll-behavior: auto; } }
+  .log p { margin: 0 0 .15rem; overflow-wrap: anywhere; }
+  .log .radar { color: var(--amber); }
+  .log .warn  { color: var(--red); }
+  .log .good  { color: var(--olive); }
+  .log .sys   { color: var(--khaki-dim); }
+
+  details {
+    border: 1px dashed var(--panel-edge);
+    padding: .7rem .9rem;
+    font-size: .8rem;
+    line-height: 1.55;
+    color: var(--khaki-dim);
+  }
+  summary {
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--amber-dim);
+  }
+  details p { max-width: 65ch; }
+  code { font-family: var(--mono); color: var(--khaki); background: #1C2418; padding: .05rem .3rem; }
+</style>
+
+<div class="console">
+  <header>
+    <p class="eyebrow">Operation: Code Warrior — First Person Edition</p>
+    <h1>Trench Defense</h1>
+    <p class="brief">You're in the trench, Commander. Enemy infantry and armor are advancing
+    on your position in waves. <strong>Tap an enemy to fire.</strong> 8 rounds per magazine —
+    watch your reloads. Don't let them reach the wire.</p>
+  </header>
+
+  <div class="stage">
+    <canvas id="view" width="1000" height="620"
+      aria-label="First-person battlefield view from your trench. Tap enemies to shoot them."></canvas>
+  </div>
+
+  <div class="log" id="log" aria-live="polite"></div>
+
+  <details>
+    <summary>Field manual · how a 3D shooter actually works</summary>
+    <p><strong>The 3D is an illusion.</strong> There is no real 3D here — every enemy has a
+    <code>distance</code> variable, and the renderer simply draws far things
+    <em>small and high</em>, near things <em>big and low</em>. Your brain does the rest.
+    Real engines (the ones behind Battlefield) do the same trick with mathematics
+    called projection — just millions of times more of it, on the graphics card.</p>
+    <p><strong>Enemies live in an ARRAY</strong> — a list variable holding many soldier
+    OBJECTS at once. Every frame, a loop walks the whole list: move each enemy closer,
+    draw it, check if it reached you. One loop, any number of enemies. Arrays are your
+    Stage 2 weapon — this game is why you'll want them.</p>
+    <p><strong>Shooting is HIT DETECTION:</strong> when you tap, the code asks every enemy
+    "does the tap point sit inside your rectangle?" That question — do two shapes
+    overlap? — is called <em>collision detection</em>, and it powers every shooter,
+    racing game, and platformer ever made.</p>
+    <p><strong>The game has STATES:</strong> fighting, reloading, between waves, game over —
+    and the code behaves differently in each. That pattern is called a
+    <em>state machine</em>. You already met it: Stage 1's play-again loop was a tiny one.</p>
+  </details>
+</div>
+
+<script>
+  var cv = document.getElementById("view");
+  var cx = cv.getContext("2d");
+  var logEl = document.getElementById("log");
+
+  var W = cv.width, H = cv.height;
+  var HORIZON = 210;
+  var GROUND_BOT = H - 130;
+
+  // ---- game state -------------------------------------------------------
+  var MAG = 8;
+  var enemies = [];        // ARRAY of enemy OBJECTS — the heart of the game
+  var state, wave, kills, shotsFired, hitsLanded, health, ammo;
+  var reloadT = 0, waveT = 0, spawnT = 0, toSpawn = 0;
+  var flash = 0, hurt = 0, tracer = null, tracerT = 0;
+  var best = 0;
+
+  function say(t, c) {
+    var p = document.createElement("p");
+    p.className = c || "sys";
+    p.textContent = t;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function reset() {
+    enemies = [];
+    wave = 0; kills = 0; shotsFired = 0; hitsLanded = 0;
+    health = 100; ammo = MAG;
+    flash = 0; hurt = 0; tracer = null;
+    nextWave();
+  }
+
+  function nextWave() {
+    wave++;
+    toSpawn = 3 + wave * 2;
+    spawnT = 0.5;
+    state = "wave-banner";
+    waveT = 2.2;
+  }
+
+  // ---- enemies ----------------------------------------------------------
+  function spawnEnemy() {
+    var tank = wave >= 2 && Math.random() < 0.18;
+    enemies.push({
+      lane: (Math.random() * 1.7 - 0.85),          // left/right position
+      dist: 1,                                     // 1 = far horizon, 0 = your trench
+      speed: (tank ? 0.030 : 0.052) + wave * 0.004 + Math.random() * 0.012,
+      hp: tank ? 2 : 1,
+      tank: tank,
+      dying: 0,                                    // fade-out timer after a kill
+      wobble: Math.random() * 6.28
+    });
+  }
+
+  // perspective: distance -> screen position & size. THE 3D trick.
+  function project(e) {
+    var p = 1 - e.dist;                            // 0 far … 1 near
+    var t = Math.pow(p, 1.7);
+    var y = HORIZON + t * (GROUND_BOT - HORIZON);
+    var x = W / 2 + e.lane * (70 + t * 520);
+    var s = 0.10 + t * 1.05;
+    return { x: x, y: y, s: s };
+  }
+
+  function enemyBox(e) {
+    var pr = project(e);
+    var bw = (e.tank ? 150 : 56) * pr.s;
+    var bh = (e.tank ? 80 : 130) * pr.s;
+    return { x: pr.x - bw / 2, y: pr.y - bh, w: bw, h: bh };
+  }
+
+  // ---- input: tap = shoot ----------------------------------------------
+  cv.addEventListener("pointerdown", function (ev) {
+    var r = cv.getBoundingClientRect();
+    var tx = (ev.clientX - r.left) * (W / r.width);
+    var ty = (ev.clientY - r.top) * (H / r.height);
+
+    if (state === "gameover") { reset(); return; }
+    if (state !== "fight" && state !== "wave-banner") return;
+    if (reloadT > 0) { say("RELOADING — take cover!", "warn"); return; }
+    if (ammo === 0) return;
+
+    ammo--; shotsFired++;
+    flash = 3;
+    tracer = { x: tx, y: ty }; tracerT = 4;
+
+    // HIT DETECTION: ask every living enemy if the tap is inside its box
+    var hit = null, hitT = -1;
+    for (var i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (e.dying > 0) continue;
+      var b = enemyBox(e);
+      if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
+        var nearness = 1 - e.dist;
+        if (nearness > hitT) { hitT = nearness; hit = e; }   // nearest target wins
+      }
+    }
+
+    if (hit) {
+      hitsLanded++;
+      hit.hp--;
+      if (hit.hp <= 0) {
+        hit.dying = 0.5;
+        kills++;
+        say(hit.tank ? "ARMOR DESTROYED. Good shooting." : "Hostile down.", "good");
+      } else {
+        say("HIT — armor holding. Hit it again!", "radar");
+      }
+    }
+
+    if (ammo === 0) {
+      reloadT = 1.3;
+      say("MAG EMPTY — reloading...", "warn");
+    }
+  });
+
+  // ---- the game loop ----------------------------------------------------
+  var last = null;
+  function loop(ts) {
+    if (last === null) last = ts;
+    var dt = Math.min((ts - last) / 1000, 0.05);
+    last = ts;
+
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function update(dt) {
+    if (flash > 0) flash--;
+    if (hurt > 0) hurt -= dt * 2;
+    if (tracerT > 0) tracerT--;
+
+    if (reloadT > 0) {
+      reloadT -= dt;
+      if (reloadT <= 0) { ammo = MAG; say("Reloaded. " + MAG + " rounds.", "sys"); }
+    }
+
+    if (state === "gameover") return;
+
+    if (state === "wave-banner") {
+      waveT -= dt;
+      if (waveT <= 0) {
+        state = "fight";
+        say("WAVE " + wave + " INCOMING — " + toSpawn + " hostiles.", "radar");
+      }
+    }
+
+    if (state === "fight" && toSpawn > 0) {
+      spawnT -= dt;
+      if (spawnT <= 0) {
+        spawnEnemy();
+        toSpawn--;
+        spawnT = Math.max(0.35, 1.6 - wave * 0.12) * (0.6 + Math.random() * 0.8);
+      }
+    }
+
+    // one loop moves EVERY enemy — this is why arrays matter
+    for (var i = enemies.length - 1; i >= 0; i--) {
+      var e = enemies[i];
+      if (e.dying > 0) {
+        e.dying -= dt;
+        if (e.dying <= 0) enemies.splice(i, 1);
+        continue;
+      }
+      e.dist -= e.speed * dt;
+      e.wobble += dt * 6;
+      if (e.dist <= 0) {                       // reached the wire
+        enemies.splice(i, 1);
+        var dmg = e.tank ? 30 : 15;
+        health -= dmg;
+        hurt = 1;
+        say((e.tank ? "ARMOR BREACHED THE WIRE" : "Hostile reached the wire") + " — health -" + dmg + "!", "warn");
+        if (health <= 0) {
+          health = 0;
+          state = "gameover";
+          best = Math.max(best, kills);
+          say("POSITION OVERRUN. " + kills + " kills, wave " + wave + ".", "warn");
+          say("Tap the screen to retake the trench.", "sys");
+          return;
+        }
+      }
+    }
+
+    if (state === "fight" && toSpawn === 0 && enemies.length === 0) {
+      say("WAVE " + wave + " CLEARED. Health restored +20.", "good");
+      health = Math.min(100, health + 20);
+      nextWave();
+    }
+  }
+
+  // ---- rendering --------------------------------------------------------
+  function draw() {
+    // sky
+    var sky = cx.createLinearGradient(0, 0, 0, HORIZON);
+    sky.addColorStop(0, "#11170F");
+    sky.addColorStop(1, "#232B1A");
+    cx.fillStyle = sky;
+    cx.fillRect(0, 0, W, HORIZON);
+
+    // distant ridge
+    cx.fillStyle = "#161D12";
+    cx.beginPath();
+    cx.moveTo(0, HORIZON);
+    for (var x = 0; x <= W; x += 25)
+      cx.lineTo(x, HORIZON - 14 - 20 * Math.abs(Math.sin(x * 0.008)) - 8 * Math.sin(x * 0.021));
+    cx.lineTo(W, HORIZON);
+    cx.fill();
+
+    // ground with perspective lines converging on the horizon
+    var gnd = cx.createLinearGradient(0, HORIZON, 0, H);
+    gnd.addColorStop(0, "#1A2114");
+    gnd.addColorStop(1, "#242E1B");
+    cx.fillStyle = gnd;
+    cx.fillRect(0, HORIZON, W, H - HORIZON);
+
+    cx.strokeStyle = "rgba(138,133,113,.12)";
+    cx.lineWidth = 1;
+    for (var l = -6; l <= 6; l++) {
+      cx.beginPath();
+      cx.moveTo(W / 2 + l * 40, HORIZON);
+      cx.lineTo(W / 2 + l * 260, H);
+      cx.stroke();
+    }
+    for (var d = 1; d <= 5; d++) {
+      var t = Math.pow(d / 5.5, 1.7);
+      var y = HORIZON + t * (GROUND_BOT - HORIZON);
+      cx.beginPath(); cx.moveTo(0, y); cx.lineTo(W, y); cx.stroke();
+    }
+
+    // enemies — far ones first so near ones draw on top
+    enemies.slice().sort(function (a, b) { return b.dist - a.dist; })
+      .forEach(drawEnemy);
+
+    // barbed wire at the trench lip
+    cx.strokeStyle = "#4A5438";
+    cx.lineWidth = 3;
+    cx.beginPath();
+    for (var wx = 0; wx <= W; wx += 18) {
+      cx.lineTo(wx, GROUND_BOT + 26 + 7 * Math.sin(wx * 0.5));
+    }
+    cx.stroke();
+
+    // trench parapet (bottom of screen = you)
+    cx.fillStyle = "#10150C";
+    cx.fillRect(0, GROUND_BOT + 44, W, H - GROUND_BOT);
+
+    // your rifle, bottom-right, first-person
+    cx.save();
+    cx.translate(W * 0.68, H + 10);
+    cx.rotate(-0.5);
+    cx.fillStyle = "#2E3524";
+    cx.fillRect(-28, -235, 42, 235);       // barrel
+    cx.fillStyle = "#3C4530";
+    cx.fillRect(-40, -80, 80, 90);         // stock
+    if (flash > 0) {                        // muzzle flash
+      cx.fillStyle = "rgba(255,217,138,.9)";
+      cx.beginPath();
+      cx.arc(-7, -242, 26 + Math.random() * 10, 0, Math.PI * 2);
+      cx.fill();
+    }
+    cx.restore();
+
+    // tracer line toward tap point
+    if (tracerT > 0 && tracer) {
+      cx.strokeStyle = "rgba(255,217,138," + tracerT / 4 + ")";
+      cx.lineWidth = 2;
+      cx.beginPath();
+      cx.moveTo(W * 0.66, H - 40);
+      cx.lineTo(tracer.x, tracer.y);
+      cx.stroke();
+    }
+
+    drawHud();
+
+    // damage flash
+    if (hurt > 0) {
+      cx.fillStyle = "rgba(226,72,61," + Math.min(0.35, hurt * 0.35) + ")";
+      cx.fillRect(0, 0, W, H);
+    }
+
+    // banners
+    if (state === "wave-banner") banner("WAVE " + wave, "hold the line");
+    if (state === "gameover") banner("POSITION OVERRUN", kills + " kills · wave " + wave + " · tap to retry");
+  }
+
+  function drawEnemy(e) {
+    var pr = project(e);
+    var alpha = e.dying > 0 ? e.dying * 2 : 1;
+    cx.save();
+    cx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    cx.translate(pr.x, pr.y);
+    var s = pr.s;
+    if (e.dying > 0) cx.rotate((0.5 - e.dying) * 2);   // fall over when hit
+
+    if (e.tank) {
+      cx.fillStyle = "#5A4A3A";
+      cx.fillRect(-75 * s, -46 * s, 150 * s, 34 * s);            // hull
+      cx.fillRect(-34 * s, -72 * s, 68 * s, 30 * s);             // turret
+      cx.fillRect(-110 * s, -62 * s, 78 * s, 9 * s);             // barrel
+      cx.fillStyle = "#463A2E";
+      cx.fillRect(-80 * s, -16 * s, 160 * s, 16 * s);            // tracks
+    } else {
+      var sway = Math.sin(e.wobble) * 4 * s;
+      cx.fillStyle = "#4E4438";
+      cx.fillRect(-14 * s + sway, -96 * s, 28 * s, 62 * s);      // torso
+      cx.beginPath();                                            // helmet
+      cx.arc(sway, -104 * s, 13 * s, Math.PI, 0);
+      cx.fill();
+      cx.fillRect(-13 * s + sway, -106 * s, 26 * s, 6 * s);
+      cx.fillRect(-12 * s + sway, -34 * s, 9 * s, 34 * s);       // legs
+      cx.fillRect(3 * s + sway, -34 * s, 9 * s, 34 * s);
+      cx.fillStyle = "#3A322A";
+      cx.fillRect(-26 * s + sway, -84 * s, 52 * s, 7 * s);       // rifle
+    }
+    cx.restore();
+  }
+
+  function drawHud() {
+    cx.font = "22px ui-monospace, Menlo, monospace";
+    cx.textAlign = "left";
+
+    // health bar
+    cx.fillStyle = "rgba(10,14,9,.75)";
+    cx.fillRect(16, 14, 260, 66);
+    cx.fillStyle = "#8A8571";
+    cx.fillText("HEALTH", 28, 40);
+    cx.fillStyle = "#2C3524";
+    cx.fillRect(28, 50, 220, 14);
+    cx.fillStyle = health > 35 ? "#94A55C" : "#E2483D";
+    cx.fillRect(28, 50, 220 * health / 100, 14);
+
+    // ammo
+    cx.fillStyle = "rgba(10,14,9,.75)";
+    cx.fillRect(W - 276, 14, 260, 66);
+    cx.fillStyle = "#8A8571";
+    cx.fillText(reloadT > 0 ? "RELOADING…" : "AMMO", W - 264, 40);
+    for (var i = 0; i < MAG; i++) {
+      cx.fillStyle = i < ammo ? "#F2A93B" : "#3A4230";
+      cx.fillRect(W - 264 + i * 20, 50, 12, 18);
+    }
+
+    // wave + kills, top centre
+    cx.fillStyle = "#CFC9B4";
+    cx.textAlign = "center";
+    cx.fillText("WAVE " + wave + "   ·   KILLS " + kills, W / 2, 40);
+  }
+
+  function banner(big, small) {
+    cx.fillStyle = "rgba(10,14,9,.72)";
+    cx.fillRect(0, H / 2 - 80, W, 150);
+    cx.fillStyle = "#F2A93B";
+    cx.font = "800 58px -apple-system, 'Segoe UI', Arial, sans-serif";
+    cx.textAlign = "center";
+    cx.fillText(big, W / 2, H / 2);
+    cx.fillStyle = "#8A8571";
+    cx.font = "24px ui-monospace, Menlo, monospace";
+    cx.fillText(small.toUpperCase(), W / 2, H / 2 + 42);
+  }
+
+  // ---- start ------------------------------------------------------------
+  say("=== TRENCH DEFENSE · FIRST PERSON ===", "sys");
+  say("Tap enemies to fire. 8-round magazine. Hold the line, Commander.");
+  reset();
+  requestAnimationFrame(loop);
+</script>
