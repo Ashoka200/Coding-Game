@@ -1,0 +1,578 @@
+<title>Code Warrior Boot Camp</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground: #0D120C;
+    --panel: #151C13;
+    --panel-edge: #26301F;
+    --amber: #F2A93B;
+    --amber-dim: #A87A2E;
+    --khaki: #CFC9B4;
+    --khaki-dim: #8A8571;
+    --red: #E2483D;
+    --olive: #94A55C;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  html { background: var(--ground); }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--khaki);
+    background: var(--ground);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 34rem;
+    padding: 1rem 1rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  header {
+    border: 1px solid var(--panel-edge);
+    border-left: 4px solid var(--amber);
+    background: var(--panel);
+    padding: .9rem 1rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .65rem;
+    letter-spacing: .22em;
+    color: var(--amber-dim);
+    text-transform: uppercase;
+    margin: 0 0 .25rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--amber);
+    text-wrap: balance;
+  }
+  .brief { margin: .45rem 0 0; font-size: .84rem; line-height: 1.55; color: var(--khaki-dim); }
+  .brief strong { color: var(--khaki); }
+
+  .progress {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .12em;
+    color: var(--khaki-dim);
+    text-transform: uppercase;
+  }
+  .pips { display: flex; gap: .35rem; }
+  .pip {
+    width: .7rem; height: .7rem;
+    transform: rotate(45deg);
+    background: #2C3524;
+    border: 1px solid var(--panel-edge);
+  }
+  .pip.done { background: var(--olive); border-color: var(--olive); }
+
+  .mission {
+    border: 1px solid var(--panel-edge);
+    background: var(--panel);
+  }
+  .mission > .head {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .75rem .9rem;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  .mission .num {
+    font-family: var(--mono);
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+  .mission h2 {
+    margin: 0;
+    font-size: .95rem;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    flex: 1;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--amber-dim);
+    border: 1px solid var(--amber-dim);
+    padding: .15rem .45rem;
+    white-space: nowrap;
+  }
+  .mission.done .chip { color: var(--olive); border-color: var(--olive); }
+  .mission.done h2::after { content: " ✓"; color: var(--olive); }
+
+  .mission .body { padding: .8rem .9rem 1rem; display: flex; flex-direction: column; gap: .7rem; }
+  .mission .text { font-size: .84rem; line-height: 1.55; color: var(--khaki-dim); max-width: 65ch; margin: 0; }
+  .mission .text strong { color: var(--khaki); }
+  .mission .goal {
+    font-size: .8rem;
+    line-height: 1.5;
+    margin: 0;
+    padding: .55rem .7rem;
+    border-left: 3px solid var(--amber);
+    background: #1A2114;
+    color: var(--khaki);
+  }
+  .goal b {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .18em;
+    color: var(--amber);
+    display: block;
+    margin-bottom: .15rem;
+  }
+
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0A0E09;
+    color: var(--khaki);
+    border: 1px solid var(--panel-edge);
+    font-family: var(--mono);
+    font-size: .82rem;
+    line-height: 1.6;
+    padding: .7rem .8rem;
+    resize: vertical;
+    border-radius: 0;
+    tab-size: 2;
+  }
+  textarea:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+  .btnrow { display: flex; gap: .6rem; }
+  button {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: .85rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: .7rem 1.2rem;
+    background: var(--amber);
+    color: #1B1406;
+    border: none;
+    cursor: pointer;
+    border-radius: 0;
+    flex: 1;
+  }
+  button:active { background: var(--amber-dim); }
+  button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  button.ghost {
+    flex: 0 0 auto;
+    background: transparent;
+    color: var(--khaki-dim);
+    border: 1px solid var(--panel-edge);
+    font-weight: 600;
+  }
+
+  .out {
+    background: #0A0E09;
+    border: 1px solid var(--panel-edge);
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.6;
+    padding: .6rem .8rem;
+    min-height: 1.6rem;
+    max-height: 9rem;
+    overflow-y: auto;
+  }
+  .out:empty::before { content: "— run your code to see output —"; color: #4A5438; }
+  .out p { margin: 0; overflow-wrap: anywhere; }
+  .out .err  { color: var(--red); }
+  .out .ok   { color: var(--olive); }
+  .out .note { color: var(--khaki-dim); }
+
+  canvas { width: 100%; display: block; border: 1px solid var(--panel-edge); background: #0A0E09; }
+
+  .py {
+    font-family: var(--mono);
+    font-size: .68rem;
+    line-height: 1.5;
+    color: var(--khaki-dim);
+    margin: 0;
+  }
+  .py b { color: var(--olive); letter-spacing: .12em; }
+  code { font-family: var(--mono); color: var(--khaki); background: #1C2418; padding: .05rem .3rem; }
+
+  .finale {
+    display: none;
+    border: 1px solid var(--olive);
+    background: #141B10;
+    padding: 1rem;
+    text-align: center;
+  }
+  .finale.show { display: block; }
+  .finale h2 {
+    margin: 0 0 .4rem;
+    color: var(--olive);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    font-size: 1.1rem;
+  }
+  .finale p { margin: 0; font-size: .84rem; line-height: 1.6; color: var(--khaki-dim); max-width: 60ch; margin-inline: auto; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Operation: Code Warrior</p>
+    <h1>Boot Camp</h1>
+    <p class="brief">No more watching, recruit — here <strong>you write the code</strong>.
+    Six missions. In each one, edit the code in the black box, press <strong>RUN</strong>,
+    and the drill sergeant checks your work. Typing it wrong and fixing it
+    <em>is</em> the training. Nothing you type can break anything — fire at will.</p>
+  </header>
+
+  <div class="progress">
+    <span id="ptext">0 / 6 missions</span>
+    <span class="pips" id="pips"></span>
+  </div>
+
+  <div id="missions"></div>
+
+  <div class="finale" id="finale">
+    <h2>🎖️ Boot Camp Complete</h2>
+    <p>You just wrote and debugged real code: <strong>variables, strings, conditionals,
+    loops, functions, and your first bug hunt</strong> — the exact skills inside every game
+    you've played, including the big-budget ones. Next: open
+    <code>stage1_artillery_strike.py</code> in Pydroid 3 and do the same thing in Python —
+    the notes under each mission already showed you how it translates. Then report back
+    for Stage 2: lists and dictionaries, the weapons behind armies of enemies.</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ---------- mission definitions -----------------------------------------
+var MISSIONS = [
+  {
+    id: "m1",
+    title: "Supply Depot",
+    chip: "variables",
+    text: "A <strong>VARIABLE</strong> is a labeled crate storing a value. " +
+          "<code>var shells = 3;</code> creates a crate named <code>shells</code> " +
+          "holding the number 3. <code>say(...)</code> prints to the output box. " +
+          "The <code>+</code> glues text and values together.",
+    goal: "HQ demands at least 10 shells and at least 20 soldiers in the depot. Change the numbers and RUN.",
+    code: 'var shells = 3;\nvar soldiers = 5;\n\nsay("Shells in depot: " + shells);\nsay("Soldiers ready: " + soldiers);',
+    capture: ["shells", "soldiers"],
+    canvas: false,
+    verify: function (r) {
+      if (typeof r.shells !== "number" || typeof r.soldiers !== "number")
+        return { pass: false, msg: "The crates 'shells' and 'soldiers' must exist and hold numbers. Keep the variable names as they are." };
+      if (r.shells < 10) return { pass: false, msg: "Depot check: only " + r.shells + " shells. HQ wants 10 or more — raise the number after 'var shells ='." };
+      if (r.soldiers < 20) return { pass: false, msg: "Depot check: only " + r.soldiers + " soldiers. HQ wants 20 or more." };
+      return { pass: true, msg: "Depot stocked: " + r.shells + " shells, " + r.soldiers + " soldiers. That's variables — named storage you control." };
+    },
+    py: "IN PYTHON › shells = 10   (no 'var', no semicolon — Python is cleaner)"
+  },
+  {
+    id: "m2",
+    title: "War Cry",
+    chip: "strings",
+    text: "Text in quotes is a <strong>STRING</strong>. Strings are data like numbers are — " +
+          "you can store them in variables and glue them with <code>+</code>. " +
+          "One wrong quote mark and the whole line collapses; precision is the game.",
+    goal: "Sign the roster: replace Recruit with YOUR name, and write your own war cry.",
+    code: 'var name = "Recruit";\nvar warcry = "...";\n\nsay(name + " shouts: " + warcry);',
+    capture: ["name", "warcry"],
+    canvas: false,
+    verify: function (r) {
+      if (typeof r.name !== "string" || typeof r.warcry !== "string")
+        return { pass: false, msg: "Both 'name' and 'warcry' must be text in quotes." };
+      if (r.name === "Recruit" || r.name.trim() === "")
+        return { pass: false, msg: "Still signed as 'Recruit'. Put your own name between the quotes." };
+      if (r.warcry === "..." || r.warcry.trim().length < 3)
+        return { pass: false, msg: "That war cry won't scare anyone. Give it at least a few characters." };
+      return { pass: true, msg: "Roster signed, " + r.name + ". Strings mastered — text is just another kind of data." };
+    },
+    py: 'IN PYTHON › name = "Ashok"  then  print(name + " shouts: " + warcry)'
+  },
+  {
+    id: "m3",
+    title: "Radar Logic",
+    chip: "if / else",
+    text: "A <strong>CONDITIONAL</strong> is a fork in the road: <code>if</code> this is true, " +
+          "do that; <code>else</code>, do the other. The engineer who wrote this radar " +
+          "got the comparison <strong>backwards</strong> — it screams DANGER at distant dots " +
+          "and stays silent when the enemy is on top of us. People die. Fix the logic.",
+    goal: "Repair the comparison so CLOSER than 100m returns \"DANGER\" and farther returns \"SAFE\". RUN fires the test alarms.",
+    code: 'function radarReport(distance) {\n  if (distance > 100) {\n    return "DANGER";\n  } else {\n    return "SAFE";\n  }\n}',
+    capture: ["radarReport"],
+    canvas: false,
+    verify: function (r, env) {
+      if (typeof r.radarReport !== "function")
+        return { pass: false, msg: "radarReport must stay a function — keep the outer lines intact." };
+      var a, b;
+      try { a = r.radarReport(30); b = r.radarReport(500); }
+      catch (e) { return { pass: false, msg: "Radar crashed during test: " + e.message }; }
+      env.say("TEST › enemy at 30m  → " + a, a === "DANGER" ? "ok" : "err");
+      env.say("TEST › enemy at 500m → " + b, b === "SAFE" ? "ok" : "err");
+      if (a === "DANGER" && b === "SAFE")
+        return { pass: true, msg: "Radar repaired. You just debugged a conditional — flipping > to < saved the trench." };
+      return { pass: false, msg: "Alarm still wrong. Think: close means the distance number is SMALL. Which symbol asks 'is it smaller?'" };
+    },
+    py: "IN PYTHON › if distance < 100:  (colon + indentation instead of { })"
+  },
+  {
+    id: "m4",
+    title: "Parade Ground",
+    chip: "loops",
+    text: "A <strong>LOOP</strong> repeats orders. <code>for (var i = 0; i < 3; i++)</code> means: " +
+          "start i at 0, repeat while i is under 3, add 1 each time — so the orders inside run " +
+          "3 times. One line of change can command an army. That's the whole power of loops.",
+    goal: "HQ ordered a battalion of exactly 12 soldiers on parade. One number controls it.",
+    code: 'for (var i = 0; i < 3; i++) {\n  drawSoldier(i);\n}\n\nsay("Soldiers on parade: " + count());',
+    capture: [],
+    canvas: true,
+    verify: function (r, env) {
+      var n = env.soldierCount;
+      if (n === 0) return { pass: false, msg: "Empty parade ground — keep drawSoldier(i) inside the loop." };
+      if (n < 12) return { pass: false, msg: "Only " + n + " soldiers mustered. The loop's middle part (i < 3) decides how many times it runs." };
+      if (n > 12) return { pass: false, msg: n + " soldiers?! HQ said exactly 12 — dial the loop back." };
+      return { pass: true, msg: "12 soldiers, one number changed. Loops turn one order into an army — remember this feeling." };
+    },
+    py: "IN PYTHON › for i in range(12):  — same loop, friendlier clothes"
+  },
+  {
+    id: "m5",
+    title: "Fire for Effect",
+    chip: "functions",
+    text: "A <strong>FUNCTION</strong> is a drilled maneuver: define it once with a name, execute it " +
+          "on command — with a <strong>PARAMETER</strong> (the value in the brackets) controlling how. " +
+          "Here <code>fireBarrage(2)</code> runs the whole barrage drill with count = 2.",
+    goal: "The assault needs a barrage of at least 8 shells. Don't touch the drill — change the ORDER at the bottom.",
+    code: 'function fireBarrage(count) {\n  for (var i = 0; i < count; i++) {\n    boom(i);\n  }\n  say("Barrage of " + count + " away!");\n}\n\nfireBarrage(2);',
+    capture: [],
+    canvas: true,
+    verify: function (r, env) {
+      var n = env.boomCount;
+      if (n === 0) return { pass: false, msg: "No shells fired — the order fireBarrage(...) at the bottom actually launches the drill." };
+      if (n < 8) return { pass: false, msg: "Only " + n + " shells. The number INSIDE fireBarrage( ) is the parameter — raise it." };
+      return { pass: true, msg: n + "-shell barrage delivered by changing one parameter. Functions: write once, command forever." };
+    },
+    py: "IN PYTHON › def fire_barrage(count):  then  fire_barrage(8)"
+  },
+  {
+    id: "m6",
+    title: "Bug Hunt",
+    chip: "debugging",
+    text: "Time for the most important skill of all. This code <strong>crashes</strong>. When code crashes, " +
+          "the computer tells you WHY in an <strong>ERROR MESSAGE</strong> — most beginners panic and stop " +
+          "reading; programmers read it like a clue. RUN it, read the red line carefully, find the typo, fix it.",
+    goal: "Make the ammo report print without errors. The error message literally names the problem.",
+    code: 'var ammo = 10;\nvar grenades = 4;\n\nsay("Ammo left: " + amo);\nsay("Grenades: " + grenades);',
+    capture: ["ammo"],
+    canvas: false,
+    verify: function (r, env) {
+      if (env.lastError)
+        return { pass: false, msg: "Still crashing. Read the red line: it names the exact word the computer doesn't recognize. Compare it letter-by-letter with line 1." };
+      var joined = env.lines.join(" ");
+      if (joined.indexOf("10") === -1)
+        return { pass: false, msg: "No crash, but the ammo count never printed. The report should show the value 10." };
+      return { pass: true, msg: "Bug found and killed: 'amo' vs 'ammo' — one missing letter. You just did real DEBUGGING, the #1 daily skill of every professional." };
+    },
+    py: "IN PYTHON › the crash report is called a TRACEBACK — same skill, read bottom line first"
+  }
+];
+
+// ---------- framework ----------------------------------------------------
+var doneCount = 0;
+var missionEls = {};
+
+function saveState(id, code, done) {
+  try { localStorage.setItem("bootcamp-" + id, JSON.stringify({ code: code, done: done })); } catch (e) {}
+}
+function loadState(id) {
+  try { return JSON.parse(localStorage.getItem("bootcamp-" + id)); } catch (e) { return null; }
+}
+
+function el(tag, cls, html) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function buildMission(m, index) {
+  var card = el("div", "mission");
+  card.id = m.id;
+
+  var head = el("div", "head");
+  head.appendChild(el("span", "num", "0" + (index + 1)));
+  head.appendChild(el("h2", null, m.title));
+  head.appendChild(el("span", "chip", m.chip));
+  card.appendChild(head);
+
+  var body = el("div", "body");
+  body.appendChild(el("p", "text", m.text));
+  body.appendChild(el("p", "goal", "<b>ORDERS</b>" + m.goal));
+
+  var ta = document.createElement("textarea");
+  ta.rows = Math.max(4, m.code.split("\n").length + 1);
+  ta.value = m.code;
+  ta.spellcheck = false;
+  ta.setAttribute("autocapitalize", "off");
+  ta.setAttribute("autocorrect", "off");
+  ta.setAttribute("autocomplete", "off");
+  ta.setAttribute("aria-label", "Code editor for mission " + m.title);
+  body.appendChild(ta);
+
+  var row = el("div", "btnrow");
+  var run = el("button", null, "▶ Run");
+  var resetB = el("button", "ghost", "Reset");
+  row.appendChild(run);
+  row.appendChild(resetB);
+  body.appendChild(row);
+
+  var canvas = null;
+  if (m.canvas) {
+    canvas = document.createElement("canvas");
+    canvas.width = 640;
+    canvas.height = 170;
+    body.appendChild(canvas);
+  }
+
+  var out = el("div", "out");
+  out.setAttribute("aria-live", "polite");
+  body.appendChild(out);
+
+  body.appendChild(el("p", "py", "<b>" + m.py.split("›")[0] + "›</b>" + m.py.split("›").slice(1).join("›")));
+
+  card.appendChild(body);
+  document.getElementById("missions").appendChild(card);
+
+  var saved = loadState(m.id);
+  if (saved) {
+    if (saved.code) ta.value = saved.code;
+    if (saved.done) markDone(card, m.id, true);
+  }
+
+  run.addEventListener("click", function () { execute(m, ta, out, canvas, card); });
+  resetB.addEventListener("click", function () {
+    ta.value = m.code;
+    out.innerHTML = "";
+    if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    saveState(m.id, m.code, card.classList.contains("done"));
+  });
+
+  missionEls[m.id] = card;
+}
+
+function markDone(card, id, silent) {
+  if (!card.classList.contains("done")) {
+    card.classList.add("done");
+    doneCount++;
+    refreshProgress();
+  }
+}
+
+function refreshProgress() {
+  document.getElementById("ptext").textContent = doneCount + " / " + MISSIONS.length + " missions";
+  var pips = document.getElementById("pips");
+  pips.innerHTML = "";
+  MISSIONS.forEach(function (m) {
+    var p = el("span", "pip" + (missionEls[m.id] && missionEls[m.id].classList.contains("done") ? " done" : ""));
+    pips.appendChild(p);
+  });
+  if (doneCount === MISSIONS.length) document.getElementById("finale").classList.add("show");
+}
+
+// ---------- execution ----------------------------------------------------
+function execute(m, ta, out, canvas, card) {
+  out.innerHTML = "";
+  var env = { lines: [], soldierCount: 0, boomCount: 0, lastError: null };
+
+  env.say = function (text, cls) {
+    env.lines.push(String(text));
+    var p = el("p", cls || null);
+    p.textContent = String(text);
+    out.appendChild(p);
+    out.scrollTop = out.scrollHeight;
+  };
+
+  var ctx = null;
+  if (canvas) {
+    ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  env.drawSoldier = function (i) {
+    if (env.soldierCount >= 60) return;
+    env.soldierCount++;
+    if (!ctx) return;
+    var n = env.soldierCount - 1;
+    var col = n % 10, rowI = Math.floor(n / 10);
+    var x = 40 + col * 58, y = 70 + rowI * 72;
+    ctx.fillStyle = "#94A55C";
+    ctx.fillRect(x - 8, y - 26, 16, 26);                 // torso
+    ctx.beginPath(); ctx.arc(x, y - 32, 8, Math.PI, 0); ctx.fill(); // helmet
+    ctx.fillRect(x - 8, y - 33, 16, 4);
+    ctx.fillRect(x - 7, y, 5, 16);                        // legs
+    ctx.fillRect(x + 2, y, 5, 16);
+    ctx.fillStyle = "#5E6B3F";
+    ctx.fillRect(x - 16, y - 20, 32, 4);                  // rifle
+  };
+
+  env.boom = function (i) {
+    if (env.boomCount >= 40) return;
+    env.boomCount++;
+    if (!ctx) return;
+    var n = env.boomCount - 1;
+    var x = 50 + (n % 10) * 58, y = 60 + Math.floor(n / 10) * 55;
+    ctx.strokeStyle = "#F2A93B";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "#E2483D";
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#FFD98A";
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+  };
+
+  env.count = function () { return env.soldierCount; };
+
+  // capture requested variables by appending a return statement
+  var suffix = "";
+  if (m.capture.length) {
+    suffix = "\n;return {" + m.capture.map(function (n) {
+      return n + ": (typeof " + n + " === 'undefined') ? undefined : " + n;
+    }).join(",") + "};";
+  }
+
+  var result = {};
+  try {
+    var fn = new Function("say", "drawSoldier", "boom", "count", ta.value + suffix);
+    result = fn(env.say, env.drawSoldier, env.boom, env.count) || {};
+  } catch (e) {
+    env.lastError = e;
+    env.say("💥 CRASH — " + e.message, "err");
+    env.say("An error is a clue, not a defeat. Read it, then look at your code.", "note");
+  }
+
+  var v;
+  try { v = m.verify(result, env); }
+  catch (e) { v = { pass: false, msg: "Check failed: " + e.message }; }
+
+  env.say((v.pass ? "✔ MISSION COMPLETE — " : "✘ SERGEANT: ") + v.msg, v.pass ? "ok" : "err");
+  if (v.pass) markDone(card, m.id);
+  saveState(m.id, ta.value, card.classList.contains("done"));
+}
+
+// ---------- boot ---------------------------------------------------------
+MISSIONS.forEach(buildMission);
+refreshProgress();
+</script>
