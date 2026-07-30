@@ -1,0 +1,642 @@
+<title>The Accountant's Code Ledger</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground: #0F1409;
+    --panel: #161C0F;
+    --panel-edge: #2A331C;
+    --ledger: #A3C46A;
+    --ledger-dim: #6E8A48;
+    --paper: #D9D4C0;
+    --paper-dim: #918D7A;
+    --amber: #E8B34B;
+    --red: #DE5348;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  html { background: var(--ground); }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--paper);
+    background: var(--ground);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 34rem;
+    padding: 1rem 1rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  header {
+    border: 1px solid var(--panel-edge);
+    border-left: 4px solid var(--ledger);
+    background: var(--panel);
+    padding: .9rem 1rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .65rem;
+    letter-spacing: .22em;
+    color: var(--ledger-dim);
+    text-transform: uppercase;
+    margin: 0 0 .25rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ledger);
+    text-wrap: balance;
+  }
+  .brief { margin: .45rem 0 0; font-size: .84rem; line-height: 1.55; color: var(--paper-dim); }
+  .brief strong { color: var(--paper); }
+
+  .keyfact {
+    border: 1px solid var(--panel-edge);
+    background: var(--panel);
+    padding: .8rem 1rem;
+    font-size: .84rem;
+    line-height: 1.6;
+    color: var(--paper-dim);
+  }
+  .keyfact b { color: var(--ledger); }
+  .keyfact .formula {
+    display: block;
+    font-family: var(--mono);
+    color: var(--paper);
+    margin: .4rem 0;
+    font-size: .8rem;
+  }
+
+  .progress {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .12em;
+    color: var(--paper-dim);
+    text-transform: uppercase;
+  }
+  .pips { display: flex; gap: .35rem; }
+  .pip {
+    width: .7rem; height: .7rem;
+    transform: rotate(45deg);
+    background: #232B15;
+    border: 1px solid var(--panel-edge);
+  }
+  .pip.done { background: var(--ledger); border-color: var(--ledger); }
+
+  .daybreak {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .24em;
+    text-transform: uppercase;
+    color: var(--amber);
+    border-bottom: 1px dashed var(--panel-edge);
+    padding-bottom: .3rem;
+    margin: .4rem 0 0;
+  }
+
+  .mission { border: 1px solid var(--panel-edge); background: var(--panel); }
+  .mission > .head {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .75rem .9rem;
+    border-bottom: 1px solid var(--panel-edge);
+  }
+  .mission .num {
+    font-family: var(--mono);
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--ledger);
+    font-variant-numeric: tabular-nums;
+  }
+  .mission h2 {
+    margin: 0;
+    font-size: .95rem;
+    font-weight: 800;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    flex: 1;
+  }
+  .chip {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ledger-dim);
+    border: 1px solid var(--ledger-dim);
+    padding: .15rem .45rem;
+    white-space: nowrap;
+  }
+  .mission.done .chip { color: var(--ledger); border-color: var(--ledger); }
+  .mission.done h2::after { content: " ✓"; color: var(--ledger); }
+
+  .mission .body { padding: .8rem .9rem 1rem; display: flex; flex-direction: column; gap: .7rem; }
+  .mission .text { font-size: .84rem; line-height: 1.6; color: var(--paper-dim); max-width: 65ch; margin: 0; }
+  .mission .text strong { color: var(--paper); }
+  .anchor {
+    font-size: .8rem;
+    line-height: 1.55;
+    margin: 0;
+    padding: .55rem .7rem;
+    border-left: 3px solid var(--amber);
+    background: #1C2310;
+    color: var(--paper);
+  }
+  .anchor b {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .18em;
+    color: var(--amber);
+    display: block;
+    margin-bottom: .15rem;
+  }
+  .goal {
+    font-size: .8rem;
+    line-height: 1.55;
+    margin: 0;
+    padding: .55rem .7rem;
+    border-left: 3px solid var(--ledger);
+    background: #1A2410;
+    color: var(--paper);
+  }
+  .goal b {
+    font-family: var(--mono);
+    font-size: .6rem;
+    letter-spacing: .18em;
+    color: var(--ledger);
+    display: block;
+    margin-bottom: .15rem;
+  }
+
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0B0F07;
+    color: var(--paper);
+    border: 1px solid var(--panel-edge);
+    font-family: var(--mono);
+    font-size: .82rem;
+    line-height: 1.6;
+    padding: .7rem .8rem;
+    resize: vertical;
+    border-radius: 0;
+    tab-size: 2;
+  }
+  textarea:focus-visible { outline: 2px solid var(--ledger); outline-offset: 1px; }
+
+  .btnrow { display: flex; gap: .6rem; }
+  button {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: .85rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: .7rem 1.2rem;
+    background: var(--ledger);
+    color: #16200A;
+    border: none;
+    cursor: pointer;
+    border-radius: 0;
+    flex: 1;
+  }
+  button:active { background: var(--ledger-dim); }
+  button:focus-visible { outline: 2px solid var(--ledger); outline-offset: 2px; }
+  button.ghost {
+    flex: 0 0 auto;
+    background: transparent;
+    color: var(--paper-dim);
+    border: 1px solid var(--panel-edge);
+    font-weight: 600;
+  }
+
+  .out {
+    background: #0B0F07;
+    border: 1px solid var(--panel-edge);
+    font-family: var(--mono);
+    font-size: .78rem;
+    line-height: 1.6;
+    padding: .6rem .8rem;
+    min-height: 1.6rem;
+    max-height: 10rem;
+    overflow-y: auto;
+    font-variant-numeric: tabular-nums;
+  }
+  .out:empty::before { content: "— run your code to see the ledger output —"; color: #465230; }
+  .out p { margin: 0; overflow-wrap: anywhere; }
+  .out .err  { color: var(--red); }
+  .out .ok   { color: var(--ledger); }
+  .out .note { color: var(--paper-dim); }
+  .out .flag { color: var(--amber); }
+
+  .py {
+    font-family: var(--mono);
+    font-size: .68rem;
+    line-height: 1.5;
+    color: var(--paper-dim);
+    margin: 0;
+  }
+  .py b { color: var(--ledger-dim); letter-spacing: .12em; }
+  code { font-family: var(--mono); color: var(--paper); background: #212A13; padding: .05rem .3rem; }
+
+  .cheat { border: 1px solid var(--panel-edge); background: var(--panel); padding: .9rem 1rem; }
+  .cheat h2 {
+    margin: 0 0 .5rem;
+    font-size: .9rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ledger);
+  }
+  .cheat .scroller { overflow-x: auto; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 30rem;
+    font-size: .76rem;
+    line-height: 1.5;
+  }
+  th, td {
+    text-align: left;
+    padding: .45rem .6rem;
+    border-bottom: 1px solid var(--panel-edge);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ledger-dim);
+  }
+  td:first-child { color: var(--paper); font-weight: 600; white-space: nowrap; }
+  td:nth-child(2) { color: var(--paper-dim); }
+  td:last-child { font-style: italic; color: var(--amber); }
+
+  .finale {
+    display: none;
+    border: 1px solid var(--ledger);
+    background: #17200D;
+    padding: 1rem;
+    text-align: center;
+  }
+  .finale.show { display: block; }
+  .finale h2 { margin: 0 0 .4rem; color: var(--ledger); letter-spacing: .14em; text-transform: uppercase; font-size: 1.05rem; }
+  .finale p { margin: 0 auto; font-size: .84rem; line-height: 1.6; color: var(--paper-dim); max-width: 60ch; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Operation: Code Warrior — CPA Division</p>
+    <h1>The Accountant's Code Ledger</h1>
+    <p class="brief">You've been programming for years, CPA — you just called it
+    <strong>Excel</strong>. This 2-day course converts what you already know into real code.
+    Six entries. Edit the code, press <strong>RUN</strong>, the reviewing partner signs off.
+    Day 1: entries 1–4. Day 2: entries 5–6, then replay all six from memory.</p>
+  </header>
+
+  <div class="keyfact">
+    <b>The proof you're already a programmer:</b>
+    <span class="formula">=SUM(A1:A10)</span>
+    That's a FUNCTION named SUM, CALLED with parentheses, taking the ARGUMENT A1:A10.
+    You've written thousands of these. Today the street signs change; the city is the same.
+  </div>
+
+  <div class="progress">
+    <span id="ptext">0 / 6 entries</span>
+    <span class="pips" id="pips"></span>
+  </div>
+
+  <div id="missions"></div>
+
+  <div class="cheat">
+    <h2>Memory card — screenshot this</h2>
+    <div class="scroller">
+    <table>
+      <tr><th>Code idea</th><th>You already know it as…</th><th>Mantra</th></tr>
+      <tr><td>VARIABLE — <code>cash = 5000</code></td><td>A ledger account with a balance; a named cell</td><td>"A variable is an account."</td></tr>
+      <tr><td>STRING — <code>"Audit fee"</code></td><td>The text in a cell vs the number in a cell</td><td>"Quotes make it text."</td></tr>
+      <tr><td>FUNCTION — <code>total()</code></td><td>An Excel formula: =SUM(), =VLOOKUP()</td><td>"Parentheses pull the trigger."</td></tr>
+      <tr><td>ARGUMENT — <code>withGST(1000)</code></td><td>What goes between the brackets in =ROUND(B2, 0)</td><td>"Arguments fill the slots."</td></tr>
+      <tr><td>OBJECT.METHOD — <code>invoice.send()</code></td><td>Right-clicking AN invoice in QuickBooks → Send</td><td>"The dot says WHOSE."</td></tr>
+      <tr><td>IF / ELSE</td><td>=IF(B2&lt;0, "overdrawn", "ok")</td><td>"Every IF is a fork."</td></tr>
+      <tr><td>LOOP</td><td>Dragging a formula down 10,000 rows — automated</td><td>"A loop is fill-down, unlimited."</td></tr>
+      <tr><td>DEBUGGING</td><td>Reconciliation — hunting the one-cent difference</td><td>"You've debugged your whole career."</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="finale" id="finale">
+    <h2>📒 Books closed — all entries posted</h2>
+    <p>Understand what just happened: your final entry was a working <strong>fraud-detection
+    audit bot</strong> — a loop plus a rule, scanning every transaction and flagging the
+    suspicious ones. Security software (antivirus, bank fraud systems, intrusion detection)
+    is that exact pattern at massive scale: <em>loop over events, apply rules, flag threats</em>.
+    Your coding goal and your security goal are the same skill. Tomorrow: replay all six
+    entries from a blank sheet (press Reset), then tell Claude "Stage 2" — lists and
+    dictionaries, which for you are just journals and charts of accounts.</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+var MISSIONS = [
+  {
+    id: "c1", day: "DAY 1 · MORNING", title: "Post the Balances", chip: "variables",
+    text: "A <strong>VARIABLE</strong> is a ledger account: a name holding a value. " +
+          "<code>var revenue = 12000;</code> posts 12000 to an account called revenue. " +
+          "The <code>=</code> here means <em>post this value</em>, not 'equals'. " +
+          "And accounts can be computed from other accounts — just like cell C1 = A1 − B1.",
+    anchor: "In Excel you'd write =A1-B1. In code, the cell references are NAMES you choose. Names beat cell references — 'revenue' can't be mistaken for 'expenses'.",
+    goal: "Compute profit FROM the two accounts (use their names, not a typed number), and make this quarter profitable: revenue at least 20000.",
+    code: 'var revenue = 12000;\nvar expenses = 15000;\n\nvar profit = 0;   // wrong: derive it from the accounts above\n\nsay("Revenue:  " + revenue);\nsay("Expenses: " + expenses);\nsay("Profit:   " + profit);',
+    capture: ["revenue", "expenses", "profit"],
+    verify: function (r, env, src) {
+      if (typeof r.profit !== "number") return { pass: false, msg: "The profit account must hold a number." };
+      if (!/profit\s*=\s*[^;\n]*revenue[^;\n]*expenses|profit\s*=\s*[^;\n]*expenses[^;\n]*revenue/.test(src))
+        return { pass: false, msg: "Derive profit from the account NAMES: profit = revenue - expenses. Never hard-type a figure you can compute — same rule as in your workpapers." };
+      if (r.profit !== r.revenue - r.expenses)
+        return { pass: false, msg: "Profit doesn't reconcile: " + r.revenue + " − " + r.expenses + " ≠ " + r.profit + "." };
+      if (r.profit <= 0) return { pass: false, msg: "Still a loss of " + r.profit + ". Grow revenue to 20000+ and re-run — watch profit update itself, like a spreadsheet recalculating." };
+      return { pass: true, msg: "Books balance: profit " + r.profit + ", derived not typed. Variables = accounts. Entry 1 posted." };
+    },
+    py: "IN PYTHON › profit = revenue - expenses   (no 'var', no semicolon)"
+  },
+  {
+    id: "c2", day: null, title: "Engagement Letter", chip: "strings",
+    text: "Text in quotes is a <strong>STRING</strong> — the difference between the NUMBER 500 and " +
+          "the TEXT \"500\" in a cell. <code>+</code> between strings joins them, " +
+          "like CONCATENATE (or <code>&amp;</code>) in Excel.",
+    anchor: "You already know =A1 & \" — \" & B1. Same glue, new spelling.",
+    goal: "Put your own firm name and client name on the letter (replace both placeholders).",
+    code: 'var firm = "Your Firm LLP";\nvar client = "Client Name";\nvar fee = 25000;\n\nsay("ENGAGEMENT LETTER");\nsay(firm + " agrees to audit " + client);\nsay("Professional fee: " + fee);',
+    capture: ["firm", "client", "fee"],
+    verify: function (r) {
+      if (typeof r.firm !== "string" || typeof r.client !== "string")
+        return { pass: false, msg: "firm and client must stay text in quotes." };
+      if (r.firm === "Your Firm LLP" || r.firm.trim().length < 2)
+        return { pass: false, msg: "The letterhead still says 'Your Firm LLP'. Put your real (or dream) firm name between the quotes." };
+      if (r.client === "Client Name" || r.client.trim().length < 2)
+        return { pass: false, msg: "Name the client — replace the placeholder text." };
+      return { pass: true, msg: "Letter issued by " + r.firm + ". Notice fee has no quotes — it's a number you can compute with; the names are strings. That distinction is half of data." };
+    },
+    py: 'IN PYTHON › firm = "Astraveda LLP"  then  print(firm + " agrees…")'
+  },
+  {
+    id: "c3", day: null, title: "Build Your Own Formula", chip: "functions",
+    text: "Excel gives you =SUM and =VLOOKUP ready-made. Code lets you <strong>DEFINE YOUR OWN " +
+          "formulas</strong> — that's all a FUNCTION is. <code>function withGST(amount)</code> creates " +
+          "a formula named withGST with one input slot called <code>amount</code> (the PARAMETER). " +
+          "<code>return</code> is what the formula hands back to the cell that called it.",
+    anchor: "withGST(1000) should behave exactly like =1000*1.18 — but written once, reusable forever, and named so the next accountant understands it.",
+    goal: "The formula forgot the 18% GST. Fix the return line so 1000 becomes 1180. RUN tests it on three invoices.",
+    code: 'function withGST(amount) {\n  return amount;   // BUG: tax not applied\n}\n\nsay("Invoice  1000 → " + withGST(1000));\nsay("Invoice  4500 → " + withGST(4500));\nsay("Invoice 12000 → " + withGST(12000));',
+    capture: ["withGST"],
+    verify: function (r, env) {
+      if (typeof r.withGST !== "function") return { pass: false, msg: "withGST must remain a function — keep the outer two lines." };
+      var a; try { a = r.withGST(1000); } catch (e) { return { pass: false, msg: "Formula crashed: " + e.message }; }
+      if (Math.abs(a - 1180) > 0.01)
+        return { pass: false, msg: "withGST(1000) returned " + a + ", expected 1180. Multiply the amount by 1.18 in the return line." };
+      if (Math.abs(r.withGST(200) - 236) > 0.01)
+        return { pass: false, msg: "Close — but the formula must work for ANY amount. Use the parameter 'amount', not the number 1000." };
+      return { pass: true, msg: "Formula certified: any amount, correct tax, written once. You are now the author of =WITHGST()." };
+    },
+    py: "IN PYTHON › def with_gst(amount):  return amount * 1.18"
+  },
+  {
+    id: "c4", day: null, title: "The Invoice on Your Desk", chip: "object . method ( )",
+    text: "Here's the pattern you asked about: <code>hero.moveRight()</code>. An <strong>OBJECT</strong> " +
+          "is a thing that owns data AND its own formulas (called METHODS). Think of one invoice " +
+          "in QuickBooks: it holds its own line items, and right-clicking it offers actions — " +
+          "Add line, Total, Send. <strong>The dot picks the thing; the parentheses pull the trigger.</strong>",
+    anchor: "invoice.addItem(\"Tax filing\", 8000) reads: 'Invoice — run your addItem action — with these details.' Exactly like hero.attack(enemy).",
+    goal: "A real invoice object is on your desk. Add a second line item — any description, any amount — then send it with its send method (its parentheses stay empty: no details needed).",
+    code: '// The object \'invoice\' is already on your desk.\n\ninvoice.addItem("Audit engagement", 25000);\nsay("Lines on invoice: " + invoice.lineCount());\nsay("Invoice total:    " + invoice.total());\n\n// YOUR ENTRIES BELOW:\n// 1) add one more line item   2) send the invoice',
+    capture: [],
+    verify: function (r, env) {
+      if (env.invoiceItems.length === 0) return { pass: false, msg: "The invoice is empty — keep the addItem line at the top." };
+      if (env.invoiceItems.length < 2)
+        return { pass: false, msg: "Only one line item. Write your own invoice.addItem(\"...\", amount); below the comment — dot, method, arguments." };
+      if (!env.invoiceSent)
+        return { pass: false, msg: "Two lines posted (total " + env.invoiceTotal() + ") but never sent. The order is invoice.send() — empty parentheses still fire the action." };
+      return { pass: true, msg: "Invoice with " + env.invoiceItems.length + " lines totalling " + env.invoiceTotal() + " — SENT. You just commanded an object like a pro: dot chooses, parentheses execute." };
+    },
+    py: "IN PYTHON › identical: invoice.add_item(\"Tax filing\", 8000) then invoice.send()"
+  },
+  {
+    id: "c5", day: "DAY 2", title: "The Materiality Rule", chip: "if / else",
+    text: "A <strong>CONDITIONAL</strong> is =IF() unchained. This audit rule should flag any cash " +
+          "transaction <em>above 10,000</em> for review (the classic anti-money-laundering threshold). " +
+          "The junior wrote it wrong — right now it flags <em>everything</em>, drowning you in noise.",
+    anchor: "Excel: =IF(B2>10000, \"FLAG\", \"CLEAR\"). Same fork, brace clothing. A security tool that alarms on everything protects nothing — precision IS the protection.",
+    goal: "Fix the condition so only transactions above 10000 get flagged. RUN tests four transactions.",
+    code: 'function auditCheck(amount) {\n  if (amount > 0) {          // junior\'s error: flags every single transaction\n    return "FLAG";\n  } else {\n    return "CLEAR";\n  }\n}',
+    capture: ["auditCheck"],
+    verify: function (r, env) {
+      if (typeof r.auditCheck !== "function") return { pass: false, msg: "auditCheck must stay a function." };
+      var tests = [[4500, "CLEAR"], [12000, "FLAG"], [9999, "CLEAR"], [27000, "FLAG"]];
+      var allOk = true;
+      for (var i = 0; i < tests.length; i++) {
+        var got; try { got = r.auditCheck(tests[i][0]); } catch (e) { return { pass: false, msg: "Rule crashed: " + e.message }; }
+        var ok = got === tests[i][1];
+        env.say("TEST › " + tests[i][0] + " → " + got, ok ? "ok" : "err");
+        if (!ok) allOk = false;
+      }
+      if (!allOk) return { pass: false, msg: "The threshold in the condition should be the AML limit: 10000. Flag only ABOVE it." };
+      return { pass: true, msg: "Rule certified: 9999 clears, 12000 flags. One comparison, correctly aimed — that's the whole art of if/else." };
+    },
+    py: "IN PYTHON › if amount > 10000:  (colon and indentation instead of braces)"
+  },
+  {
+    id: "c6", day: null, title: "The Audit Bot", chip: "loops — capstone",
+    text: "The finale. A <strong>LOOP</strong> is fill-down without limits: apply the same rule to " +
+          "every row, whether 10 rows or 10 million. Below, <code>transactions</code> is a list of " +
+          "10 amounts from the client's books. The loop visits each one; your Entry-5 rule decides. " +
+          "But the junior struck again — the threshold inside is wrong.",
+    anchor: "This loop-plus-rule pattern is literally how bank fraud systems and antivirus engines work: loop over every event, apply rules, flag threats. You're writing your first security program.",
+    goal: "Fix the rule inside the loop (AML limit: above 10000) so the bot flags exactly the right transactions.",
+    code: 'var flagged = 0;\n\nfor (var i = 0; i < transactions.length; i++) {\n  var amount = transactions[i];\n\n  if (amount > 0) {          // wrong threshold again!\n    flagged = flagged + 1;\n    flag("Row " + (i + 1) + ": " + amount + "  ← review");\n  }\n}\n\nsay("Scanned " + transactions.length + " transactions.");\nsay("Flagged for review: " + flagged);',
+    capture: ["flagged"],
+    verify: function (r, env) {
+      if (typeof r.flagged !== "number") return { pass: false, msg: "Keep the 'flagged' counter — the partner wants a count." };
+      if (r.flagged === 10) return { pass: false, msg: "All 10 rows flagged — the threshold is still wrong. An alarm that always rings is as useless as one that never does." };
+      if (r.flagged === 0) return { pass: false, msg: "Nothing flagged — did the comparison flip the wrong way? Four of these rows are above the limit." };
+      if (r.flagged !== 4) return { pass: false, msg: r.flagged + " flags. The books contain exactly 4 transactions above 10000. Check the threshold: > 10000." };
+      return { pass: true, msg: "AUDIT COMPLETE: 10 scanned, 4 flagged, 0 errors — in one blink. You just automated an audit AND written your first fraud-detection program. Scroll down and read what that means." };
+    },
+    py: "IN PYTHON › for amount in transactions:  — the loop names each row for you"
+  }
+];
+
+var TRANSACTIONS = [4500, 12000, 800, 15500, 3200, 9999, 27000, 450, 11000, 2300];
+
+// ---------- framework ----------------------------------------------------
+var doneCount = 0;
+var missionEls = {};
+
+function saveState(id, code, done) {
+  try { localStorage.setItem("ledger-" + id, JSON.stringify({ code: code, done: done })); } catch (e) {}
+}
+function loadState(id) {
+  try { return JSON.parse(localStorage.getItem("ledger-" + id)); } catch (e) { return null; }
+}
+function el(tag, cls, html) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function buildMission(m, index) {
+  var host = document.getElementById("missions");
+  if (m.day) host.appendChild(el("p", "daybreak", m.day));
+
+  var card = el("div", "mission");
+  card.id = m.id;
+
+  var head = el("div", "head");
+  head.appendChild(el("span", "num", "0" + (index + 1)));
+  head.appendChild(el("h2", null, m.title));
+  head.appendChild(el("span", "chip", m.chip));
+  card.appendChild(head);
+
+  var body = el("div", "body");
+  body.appendChild(el("p", "text", m.text));
+  body.appendChild(el("p", "anchor", "<b>YOU ALREADY KNOW THIS</b>" + m.anchor));
+  body.appendChild(el("p", "goal", "<b>YOUR ENTRY</b>" + m.goal));
+
+  var ta = document.createElement("textarea");
+  ta.rows = Math.max(4, m.code.split("\n").length + 1);
+  ta.value = m.code;
+  ta.spellcheck = false;
+  ta.setAttribute("autocapitalize", "off");
+  ta.setAttribute("autocorrect", "off");
+  ta.setAttribute("autocomplete", "off");
+  ta.setAttribute("aria-label", "Code editor for entry " + m.title);
+  body.appendChild(ta);
+
+  var row = el("div", "btnrow");
+  var run = el("button", null, "▶ Run");
+  var resetB = el("button", "ghost", "Reset");
+  row.appendChild(run); row.appendChild(resetB);
+  body.appendChild(row);
+
+  var out = el("div", "out");
+  out.setAttribute("aria-live", "polite");
+  body.appendChild(out);
+
+  var pyParts = m.py.split("›");
+  body.appendChild(el("p", "py", "<b>" + pyParts[0] + "›</b>" + pyParts.slice(1).join("›")));
+
+  card.appendChild(body);
+  host.appendChild(card);
+
+  var saved = loadState(m.id);
+  if (saved) {
+    if (saved.code) ta.value = saved.code;
+    if (saved.done) markDone(card);
+  }
+
+  run.addEventListener("click", function () { execute(m, ta, out, card); });
+  resetB.addEventListener("click", function () {
+    ta.value = m.code;
+    out.innerHTML = "";
+    saveState(m.id, m.code, card.classList.contains("done"));
+  });
+
+  missionEls[m.id] = card;
+}
+
+function markDone(card) {
+  if (!card.classList.contains("done")) {
+    card.classList.add("done");
+    doneCount++;
+    refreshProgress();
+  }
+}
+
+function refreshProgress() {
+  document.getElementById("ptext").textContent = doneCount + " / " + MISSIONS.length + " entries";
+  var pips = document.getElementById("pips");
+  pips.innerHTML = "";
+  MISSIONS.forEach(function (m) {
+    pips.appendChild(el("span", "pip" + (missionEls[m.id] && missionEls[m.id].classList.contains("done") ? " done" : "")));
+  });
+  if (doneCount === MISSIONS.length) document.getElementById("finale").classList.add("show");
+}
+
+// ---------- execution ----------------------------------------------------
+function execute(m, ta, out, card) {
+  out.innerHTML = "";
+  var env = { lines: [], invoiceItems: [], invoiceSent: false, lastError: null };
+
+  env.say = function (text, cls) {
+    env.lines.push(String(text));
+    var p = el("p", cls || null);
+    p.textContent = String(text);
+    out.appendChild(p);
+    out.scrollTop = out.scrollHeight;
+  };
+  env.flag = function (text) { env.say("⚑ " + text, "flag"); };
+
+  env.invoiceTotal = function () {
+    var t = 0;
+    for (var i = 0; i < env.invoiceItems.length; i++) t += env.invoiceItems[i].amount;
+    return t;
+  };
+
+  var invoice = {
+    addItem: function (desc, amount) {
+      if (env.invoiceItems.length >= 20) return;
+      env.invoiceItems.push({ desc: String(desc), amount: Number(amount) || 0 });
+      env.say("  + line: " + desc + "  " + amount, "note");
+    },
+    lineCount: function () { return env.invoiceItems.length; },
+    total: function () { return env.invoiceTotal(); },
+    send: function () {
+      env.invoiceSent = true;
+      env.say("  ✉ invoice sent to client", "note");
+    }
+  };
+
+  var suffix = "";
+  if (m.capture.length) {
+    suffix = "\n;return {" + m.capture.map(function (n) {
+      return n + ": (typeof " + n + " === 'undefined') ? undefined : " + n;
+    }).join(",") + "};";
+  }
+
+  var result = {};
+  try {
+    var fn = new Function("say", "flag", "invoice", "transactions", ta.value + suffix);
+    result = fn(env.say, env.flag, invoice, TRANSACTIONS.slice()) || {};
+  } catch (e) {
+    env.lastError = e;
+    env.say("💥 CRASH — " + e.message, "err");
+    env.say("An error message is a clue, not a defeat. Read it, then re-check your entry.", "note");
+  }
+
+  var v;
+  try { v = m.verify(result, env, ta.value); }
+  catch (e) { v = { pass: false, msg: "Check failed: " + e.message }; }
+
+  env.say((v.pass ? "✔ ENTRY POSTED — " : "✘ REVIEW NOTE: ") + v.msg, v.pass ? "ok" : "err");
+  if (v.pass) markDone(card);
+  saveState(m.id, ta.value, card.classList.contains("done"));
+}
+
+// ---------- boot ---------------------------------------------------------
+MISSIONS.forEach(buildMission);
+refreshProgress();
+</script>
