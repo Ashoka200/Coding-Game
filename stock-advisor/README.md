@@ -6,9 +6,25 @@ phases), `EXTENDED-ROADMAP.md` (ML/intraday/multi-user phases), and `knowledge/`
 
 ## Status
 
-- **Phase 1 (data foundation): code complete** — universe, EOD prices (yfinance +
-  official NSE bhavcopy cross-check), point-in-time fundamentals schema, decision
-  journal with calibration reporting. Offline logic covered by `tests/`.
+- **Phase 1 (data foundation): complete** — universe, EOD prices (yfinance +
+  official NSE bhavcopy cross-check), point-in-time fundamentals, decision journal.
+- **Phase 2 (engines): complete** — indicators, technical engine (stage analysis,
+  4 setups, technical score), fundamental scorer (quality/growth/valuation/
+  governance with veto flags), relative-strength ranking.
+- **Phase 3 (levels + AI + dashboard): complete** — entry/stop/target/size
+  calculator, Claude 360° report layer (knowledge modules as system prompt),
+  Streamlit dashboard (`streamlit run src/dashboard.py`).
+- **Phase 4 (backtest + portfolio + alerts): complete** — costed breakout
+  backtester, portfolio tracker (heat, stops, sector caps), daily digest.
+- **Phase 5 (paper trading): infrastructure ready** — journal every screen
+  suggestion (`advisor.journal`), review `calibration_report()` quarterly. The
+  2-3 month paper period itself is calendar time, not code.
+- **Phase 6 (F&O): analytics complete** — Black-Scholes Greeks, implied vol, IVP,
+  defined-risk strategy selector (banned structures unrepresentable). Live option
+  -chain ingestion needs a broker API (next).
+- **Phase 7 (execution)**: deliberately manual — the system outputs exact order
+  plans; you place them. Broker-API automation only after the paper period.
+- All engine logic covered by offline tests (`python -m pytest tests/ -q`, 20 tests).
 - Live NSE/Yahoo fetches require normal internet access (blocked in some sandboxes);
   run the commands below on your own machine.
 
@@ -30,6 +46,20 @@ Nightly cron (after bhavcopy publishes, ~18:30 IST):
 
 ```cron
 30 18 * * 1-5 cd /path/to/stock-advisor/src && python -m advisor.cli update-prices && python -m advisor.cli ingest-bhavcopy
+```
+
+Daily use once data is loaded:
+
+```bash
+python -m advisor.cli regime                 # market regime state + signals
+python -m advisor.cli screen --book trading  # ranked setups with trade plans
+python -m advisor.cli screen --book investing
+python -m advisor.cli backtest               # evidence: breakout stats, after costs
+python -m advisor.cli fetch-fundamentals     # refresh fundamental snapshots (weekly)
+python -m advisor.cli digest                 # the whole daily brief in one output
+python -m advisor.cli report RELIANCE        # AI 360° report (ANTHROPIC_API_KEY)
+python -m advisor.cli portfolio add --symbol RELIANCE --book investing --qty 10 --cost 2900 --stop 2600
+streamlit run src/dashboard.py               # web dashboard
 ```
 
 Tests: `python -m pytest tests/ -q` (no network needed).
