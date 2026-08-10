@@ -119,6 +119,10 @@ For each candidate the system outputs:
 - Claude API call per shortlisted stock: receives all engine JSON + recent
   announcements, returns the 360° report — bull case, bear case, what would
   invalidate the thesis, and a plain-English rationale for the levels.
+- The call's system prompt is assembled from the **knowledge layer**
+  (`knowledge/` — CFA-curriculum and quant-PM doctrine modules 01–09), so the AI
+  analyzes with a fixed institutional methodology rather than ad-hoc reasoning.
+  The knowledge modules are also the specification the Python engines implement.
 - Also a daily portfolio review: "what changed, what needs action."
 
 ### 3.7 F&O module (Phase 5 only)
