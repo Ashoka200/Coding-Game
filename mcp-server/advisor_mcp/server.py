@@ -369,6 +369,148 @@ def tool_get_deep_dive(symbol: str) -> dict:
                        "notes to accounts, not here — read them before a long-term decision."])
 
 
+def _fundamental_inputs(symbol: str) -> tuple[dict, list[dict]]:
+    """Map stored fundamentals onto valuation inputs, naming what is absent."""
+    from advisor.fundamentals import latest_fundamentals
+    vals = latest_fundamentals(symbol) or {}
+    f, _ = _features(symbol)
+    inputs = {
+        "fcff": vals.get("fcf") or vals.get("free_cashflow"),
+        "shares": vals.get("shares_outstanding"),
+        "net_debt": ((vals.get("total_debt") or 0) - (vals.get("total_cash") or 0)
+                     if vals.get("total_debt") is not None else None),
+        "total_debt": vals.get("total_debt"),
+        "beta": vals.get("beta"),
+        "eps": vals.get("eps"),
+        "book_value": vals.get("book_value"),
+        "growth": vals.get("earnings_growth"),
+    }
+    unknown = [{"field": k, "reason": "not stored for this symbol; the lens that needs "
+                                      "it is skipped rather than estimated"}
+               for k, v in inputs.items() if v is None]
+    return {k: v for k, v in inputs.items() if v is not None}, unknown
+
+
+def tool_get_valuation(symbol: str) -> dict:
+    """What is it worth, and what does the price already assume?"""
+    from advisor.valuation import value_company
+    try:
+        f, price_source, as_of, price_caveats = _resolve_features(symbol)
+    except LookupError as exc:
+        return unavailable("valuation", f"no price for {symbol}: {exc}")
+    inputs, unknown = _fundamental_inputs(symbol)
+    v = value_company(symbol, f.get("close"), inputs)
+    return ok(v.to_dict(),
+              provenance=[{"field": "price", "source": price_source, "as_of": as_of},
+                          {"field": "financial inputs", "source": "advisor database",
+                           "as_of": "latest stored"}],
+              unknown=unknown + v.unknowns,
+              caveats=["A discounted cash flow is a model, not a measurement. The "
+                       "reverse-DCF figure — the growth the price already assumes — is "
+                       "the more useful half."] + price_caveats + v.caveats)
+
+
+def tool_get_ownership(symbol: str) -> dict:
+    """Who has been buying and selling."""
+    from advisor.ownership import analyse
+    if not _remote_allowed():
+        return unavailable("ownership", "shareholding is fetched by the console API and "
+                                        "remote mode is disabled")
+    try:
+        payload, src = remote.deep_dive(symbol)
+    except remote.RemoteUnavailable as exc:
+        return unavailable("ownership", str(exc))
+    sh = payload.get("shareholding") or {}
+    read = analyse(symbol, sh.get("rows"), sh.get("periods"))
+    return ok(read.to_dict(),
+              provenance=[{"field": "shareholding", "source": src,
+                           "as_of": "latest disclosed quarter"}],
+              unknown=[{"field": u, "reason": "not present in the disclosed pattern"}
+                       for u in read.unknowns],
+              caveats=["Shareholding is disclosed quarterly, so it is a lagging record "
+                       "of what informed money did — not what it is doing today.",
+                       "Promoter pledging is disclosed separately and is not in this "
+                       "feed; check it before any long-term position."])
+
+
+def tool_get_credit(symbol: str) -> dict:
+    """Balance-sheet screens: what could cause a permanent loss."""
+    from advisor.credit import assess
+    from advisor.fundamentals import latest_fundamentals
+    vals = latest_fundamentals(symbol) or {}
+    if not vals:
+        return unavailable("credit", f"no fundamental values stored for {symbol}")
+    current = {
+        "total_assets": vals.get("total_assets"),
+        "total_liabilities": vals.get("total_liabilities"),
+        "working_capital": vals.get("working_capital"),
+        "retained_earnings": vals.get("retained_earnings"),
+        "ebit": vals.get("ebit"), "ebitda": vals.get("ebitda"),
+        "sales": vals.get("revenue") or vals.get("sales"),
+        "market_cap": vals.get("market_cap"), "book_equity": vals.get("book_value"),
+        "net_debt": ((vals.get("total_debt") or 0) - (vals.get("total_cash") or 0)
+                     if vals.get("total_debt") is not None else None),
+        "interest": vals.get("interest"), "cash": vals.get("total_cash"),
+        "cfo": vals.get("operating_cashflow"),
+        "debt_due_12m": vals.get("debt_due_12m"),
+    }
+    read = assess(symbol, {k: v for k, v in current.items() if v is not None},
+                  sector=vals.get("sector"))
+    return ok(read.to_dict(),
+              provenance=[{"field": "statements", "source": "advisor database",
+                           "as_of": "latest stored"}],
+              unknown=[{"field": u, "reason": "not stored; the screen that needs it "
+                                              "returns nothing rather than a number"}
+                       for u in read.unknowns],
+              caveats=["Debt maturing within twelve months is the single most useful "
+                       "credit number and is rarely in free feeds — read it in the "
+                       "notes to accounts before a large position."])
+
+
+def tool_special_situation(kind: str, params: dict) -> dict:
+    """Event arithmetic: buyback, open offer, rights, merger, delisting, demerger."""
+    from advisor import special_situations as ss
+    fns = {"buyback": ss.buyback_tender, "open_offer": ss.open_offer,
+           "rights": ss.rights_issue, "merger": ss.merger_arb,
+           "delisting": ss.delisting, "demerger": ss.demerger}
+    fn = fns.get(kind)
+    if fn is None:
+        return unavailable("special situation",
+                           f"unknown kind '{kind}'; expected one of {sorted(fns)}")
+    try:
+        result = fn(**params)
+    except TypeError as exc:
+        return unavailable("special situation", f"wrong or missing parameters: {exc}")
+    except Exception as exc:
+        return unavailable("special situation", f"{type(exc).__name__}: {exc}")
+    return ok(result.to_dict(),
+              provenance=[{"field": "terms", "source": "supplied by the caller",
+                           "as_of": "as given"}],
+              unknown=result.unknowns,
+              caveats=["Arithmetic on the terms you supplied. Verify every term against "
+                       "the offer document before acting.",
+                       "Buyback proceeds have been taxed as deemed dividend at slab "
+                       "rate since 1 October 2024; the model applies this by default."])
+
+
+def tool_portfolio_risk() -> dict:
+    """VaR, stress scenarios and correlation across current holdings."""
+    if not _db_ready():
+        return unavailable("portfolio risk", "portfolio risk is local-only; it needs "
+                                             "the advisor database on this machine")
+    from advisor.risk import portfolio_risk_report
+    report = portfolio_risk_report()
+    if report.get("note"):
+        return unavailable("portfolio risk", report["note"])
+    return ok(report,
+              provenance=[{"field": "returns", "source": "advisor database (stored EOD)",
+                           "as_of": "latest stored session"}],
+              caveats=["Stress scenarios take no diversification credit: correlations "
+                       "converge in the crashes that matter.",
+                       "Value at risk says nothing about the size of the loss beyond "
+                       "it — read the expected-shortfall figure alongside."])
+
+
 def tool_get_portfolio() -> dict:
     if not _db_ready():
         return unavailable("portfolio",
@@ -477,6 +619,44 @@ def get_deep_dive(symbol: str) -> dict:
     """Full published financial statements for one company — profit and loss, balance
     sheet, cash flow, ratios and shareholding as year-by-year series."""
     return _safe(tool_get_deep_dive, "deep dive", symbol.upper())
+
+
+@mcp_server.tool()
+def get_valuation(symbol: str) -> dict:
+    """What one company is worth: discounted cash flow, the growth the current price
+    already assumes (reverse DCF), and relative multiples. Lenses without their
+    inputs are skipped, never estimated."""
+    return _safe(tool_get_valuation, "valuation", symbol.upper())
+
+
+@mcp_server.tool()
+def get_ownership(symbol: str) -> dict:
+    """Who has been buying and selling: promoter, foreign and domestic institutional
+    holdings over recent quarters, and whether stock is moving to or from informed
+    hands."""
+    return _safe(tool_get_ownership, "ownership", symbol.upper())
+
+
+@mcp_server.tool()
+def get_credit(symbol: str) -> dict:
+    """Balance-sheet screens — Altman-Z, Beneish-M, Piotroski-F, debt maturity wall
+    and covenant headroom. Screens that do not apply to the sector refuse to run."""
+    return _safe(tool_get_credit, "credit", symbol.upper())
+
+
+@mcp_server.tool()
+def analyse_special_situation(kind: str, params: dict) -> dict:
+    """Event arithmetic for a corporate action. kind: buyback, open_offer, rights,
+    merger, delisting or demerger. params are the offer terms — see each engine's
+    signature. An unknown acceptance ratio returns a gap, not a return."""
+    return _safe(tool_special_situation, "special situation", kind.lower(), params or {})
+
+
+@mcp_server.tool()
+def get_portfolio_risk() -> dict:
+    """Value at risk, expected shortfall, crisis stress scenarios and correlation
+    diagnostics across current holdings. Local database only."""
+    return _safe(tool_portfolio_risk, "portfolio risk")
 
 
 @mcp_server.tool()
