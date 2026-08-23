@@ -37,7 +37,7 @@ phases), `EXTENDED-ROADMAP.md` (ML/intraday/multi-user phases), and `knowledge/`
 - **Verdict engine** (`verdict.py`): nine-stage decision sequence shared with the
   web console — evidence, vetoes, position, business, valuation, news, trend,
   regime, horizon, synthesis.
-- All engine logic covered by offline tests (`python -m pytest tests/ -q`, 27 tests).
+- All engine logic covered by offline tests (`python -m pytest tests/ -q`, 44 tests).
 - Live NSE/Yahoo fetches require normal internet access (blocked in some sandboxes);
   run the commands below on your own machine.
 
