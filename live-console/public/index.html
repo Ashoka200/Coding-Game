@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>360° Advisor Live</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg:#F6F7F3; --surface:#FFFFFF; --surface2:#EEF0EA; --ink:#1D2420;
+    --muted:#5D675F; --line:#D8DCD3; --accent:#A8761F; --accent-soft:#F3E8D2;
+    --up:#1E7D4F; --up-soft:#DFEEE5; --down:#B0372D; --down-soft:#F4E0DD;
+    --warn:#8A6A12; --warn-soft:#F2EAD0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#121714; --surface:#1A211C; --surface2:#222B25; --ink:#E8EAE3;
+      --muted:#9AA69C; --line:#313B33; --accent:#D9A441; --accent-soft:#33290F;
+      --up:#4CAF7D; --up-soft:#16301F; --down:#E07A6B; --down-soft:#38201C;
+      --warn:#D9B34A; --warn-soft:#322A10;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px; line-height:1.55; }
+  .mono { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+  header { position:sticky; top:0; z-index:10; background:var(--surface);
+           border-bottom:1px solid var(--line); padding:14px 20px; }
+  .hwrap { max-width:1080px; margin:0 auto; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  .brand { font-family:Archivo,sans-serif; font-weight:800; font-size:17px; }
+  .brand em { color:var(--accent); font-style:normal; }
+  .livechip { font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
+              letter-spacing:.06em; text-transform:uppercase; padding:3px 10px;
+              border-radius:999px; background:var(--up-soft); color:var(--up); }
+  #asof { margin-left:auto; color:var(--muted); font-size:12.5px; }
+  main { max-width:1080px; margin:0 auto; padding:24px 20px 60px; }
+  h2 { font-family:Archivo,sans-serif; font-weight:700; font-size:16px; margin:26px 0 10px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:16px 18px; }
+  .regime-strip { display:flex; gap:14px; flex-wrap:wrap; }
+  .stat { background:var(--surface2); border-left:3px solid var(--accent);
+          border-radius:6px; padding:10px 14px; min-width:130px; }
+  .stat .k { font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
+             letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
+  .stat .v { font-family:"IBM Plex Mono",monospace; font-size:17px; font-weight:600; }
+  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  th { text-align:left; font-family:Archivo,sans-serif; font-size:11px; text-transform:uppercase;
+       letter-spacing:.07em; color:var(--muted); padding:7px 10px; border-bottom:1px solid var(--line);
+       cursor:default; white-space:nowrap; }
+  td { padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .tablewrap { overflow-x:auto; }
+  tr.row { cursor:pointer; }
+  tr.row:hover td { background:var(--surface2); }
+  .pill { display:inline-block; font-family:Archivo,sans-serif; font-weight:700; font-size:10.5px;
+          letter-spacing:.05em; text-transform:uppercase; border-radius:999px; padding:2px 8px; }
+  .pill.up { background:var(--up-soft); color:var(--up); }
+  .pill.down { background:var(--down-soft); color:var(--down); }
+  .pill.warn { background:var(--warn-soft); color:var(--warn); }
+  .pill.mutedp { background:var(--surface2); color:var(--muted); }
+  .pos { color:var(--up); } .neg { color:var(--down); }
+  #detail { margin-top:14px; }
+  .planrow { display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; }
+  .notice { border-radius:6px; padding:10px 14px; font-size:13px; margin-top:10px; }
+  .notice.warnn { background:var(--warn-soft); color:var(--warn); }
+  .notice.err { background:var(--down-soft); color:var(--down); }
+  footer { max-width:1080px; margin:0 auto; padding:16px 20px 40px; color:var(--muted);
+           font-size:12.5px; border-top:1px solid var(--line); }
+  input[type="number"], input[type="text"] {
+    font-family:"IBM Plex Mono",monospace; font-size:13.5px; padding:7px 10px;
+    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); width:130px;
+  }
+  button.act { font-family:Archivo,sans-serif; font-weight:700; font-size:13px;
+               background:var(--accent); color:#fff; border:none; border-radius:5px;
+               padding:8px 14px; cursor:pointer; }
+  button.act:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .controls label { font-size:12.5px; color:var(--muted); }
+  #status { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand">360° <em>Advisor</em> Live</div>
+    <span class="livechip" id="livechip">connecting…</span>
+    <span id="asof"></span>
+  </div>
+</header>
+<main>
+  <h2>Market regime — Nifty 50 index</h2>
+  <div class="card"><div class="regime-strip" id="regime">loading…</div></div>
+
+  <h2>Watchlist — live analysis</h2>
+  <div class="card">
+    <div class="controls">
+      <label>Add NSE symbol <input type="text" id="addsym" placeholder="e.g. TITAN"></label>
+      <button class="act" id="addbtn">Add</button>
+      <label>Capital ₹ <input type="number" id="capital" value="1000000" step="50000"></label>
+      <label>Risk % <input type="number" id="riskpct" value="0.75" step="0.05"></label>
+      <span id="status"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>Symbol</th><th>Last ₹</th><th>Day</th><th>Stage</th><th>RSI-14</th>
+          <th>vs 52w-high</th><th>12-1 Mom</th><th>Setup</th><th>Tech score</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div id="detail"></div>
+  </div>
+
+  <div class="notice warnn" style="margin-top:18px">Data via a serverless proxy of a
+  free public feed — good for decision support, not tick-perfect. Cross-check against
+  the official NSE bhavcopy (the full system does this nightly). Decision-support
+  only, not investment advice.</div>
+</main>
+<footer>Engines here are the same formulas as the repository's Python
+(<span class="mono">technical.py</span>, <span class="mono">levels.py</span>),
+ported to JavaScript and running on live end-of-day data.</footer>
+
+<script>
+(function () {
+  "use strict";
+  var DEFAULT_WATCH = ["RELIANCE","TCS","HDFCBANK","ICICIBANK","INFY","LT",
+                       "BHARTIARTL","ITC","SBIN","TATAMOTORS","SUNPHARMA","TITAN"];
+  var watch = [];
+  try { watch = JSON.parse(localStorage.getItem("watchlist") || "null") || DEFAULT_WATCH.slice(); }
+  catch (e) { watch = DEFAULT_WATCH.slice(); }
+  function saveWatch() { try { localStorage.setItem("watchlist", JSON.stringify(watch)); } catch (e) {} }
+
+  var fmt = function (n, d) {
+    return n == null || isNaN(n) ? "—"
+      : n.toLocaleString("en-IN", { maximumFractionDigits: d == null ? 2 : d,
+                                    minimumFractionDigits: d == null ? 2 : d });
+  };
+
+  /* ---- indicator math (ports of indicators.py / technical.py) ---- */
+  function sma(a, n, i) {
+    if (i == null) i = a.length - 1;
+    if (i + 1 < n) return null;
+    var s = 0; for (var j = i - n + 1; j <= i; j++) s += a[j];
+    return s / n;
+  }
+  function ema(a, n) {
+    var k = 2 / (n + 1), e = a[0], out = [e];
+    for (var i = 1; i < a.length; i++) { e = a[i] * k + e * (1 - k); out.push(e); }
+    return out;
+  }
+  function rsi(close, n) {
+    n = n || 14;
+    var up = 0, down = 0, i;
+    for (i = 1; i <= n && i < close.length; i++) {
+      var d = close[i] - close[i - 1];
+      if (d > 0) up += d; else down -= d;
+    }
+    up /= n; down /= n;
+    for (i = n + 1; i < close.length; i++) {
+      var dd = close[i] - close[i - 1];
+      up = (up * (n - 1) + Math.max(dd, 0)) / n;
+      down = (down * (n - 1) + Math.max(-dd, 0)) / n;
+    }
+    if (down === 0) return 100;
+    return 100 - 100 / (1 + up / down);
+  }
+  function atr(high, low, close, n) {
+    n = n || 14;
+    var trs = [];
+    for (var i = 1; i < close.length; i++) {
+      trs.push(Math.max(high[i] - low[i], Math.abs(high[i] - close[i - 1]),
+                        Math.abs(low[i] - close[i - 1])));
+    }
+    var a = trs[0];
+    for (var j = 1; j < trs.length; j++) a = (a * (n - 1) + trs[j]) / n;
+    return a;
+  }
+
+  function analyze(sym, d) {
+    var c = d.close.filter(function (x) { return x != null; });
+    var h = d.high.filter(function (x) { return x != null; });
+    var l = d.low.filter(function (x) { return x != null; });
+    if (c.length < 210) return null;
+    var last = d.last || c[c.length - 1];
+    var prev = c[c.length - 2];
+    var s200 = sma(c, 200), s200prev = sma(c, 200, c.length - 22);
+    var e50 = ema(c, 50)[c.length - 1], e20 = ema(c, 20)[c.length - 1];
+    var rising = s200prev != null && s200 > s200prev;
+    var stage = (last > s200 && rising && last > e50) ? 2
+              : (last < s200 && !rising) ? 4 : (rising ? 1 : 3);
+    var hi52 = Math.max.apply(null, c.slice(-252));
+    var dist52 = last / hi52 - 1;
+    var mom = c.length >= 253 ? c[c.length - 22] / c[c.length - 253] - 1 : null;
+    var r = rsi(c, 14);
+    var a14 = atr(h, l, c, 14);
+    var hi60 = Math.max.apply(null, h.slice(-61, -1));
+    var setup = "";
+    if (stage === 2) {
+      if (last > hi60) setup = "60d-high breakout";
+      else if (Math.min(Math.abs(last / e20 - 1), Math.abs(last / e50 - 1)) <= 0.02
+               && r >= 35 && r <= 60) setup = "pullback in trend";
+      else if (dist52 > -0.005) setup = "new 52w high";
+    }
+    var score = ({2:40,1:20,3:10,4:0})[stage];
+    if (mom != null) score += Math.max(0, Math.min(15, mom * 50));
+    score += Math.max(0, Math.min(15, (dist52 + 0.25) * 60));
+    if (r > 50 && r < 75) score += 10;
+    return { sym: sym, last: last, dayPct: prev ? last / prev - 1 : null,
+             stage: stage, rsi: r, dist52: dist52, mom: mom, setup: setup,
+             score: Math.round(Math.min(score, 100)), atr: a14,
+             swingLow: Math.min.apply(null, l.slice(-20)) };
+  }
+
+  function fetchHist(sym, range) {
+    return fetch("/api/history?symbol=" + encodeURIComponent(sym) +
+                 "&range=" + (range || "2y"))
+      .then(function (r) { if (!r.ok) throw new Error(sym + ": " + r.status);
+                           return r.json(); });
+  }
+
+  /* ---- regime panel ---- */
+  function renderRegime(d) {
+    var c = d.close.filter(function (x) { return x != null; });
+    var last = d.last || c[c.length - 1];
+    var s200 = sma(c, 200);
+    var above = last > s200;
+    var hi = Math.max.apply(null, c.slice(-252));
+    var dd = last / hi - 1;
+    var state = above && dd > -0.05 ? ["EXPANSION", "up"]
+              : dd < -0.20 ? ["CRISIS", "down"]
+              : dd < -0.10 ? ["STRESS", "down"]
+              : ["CAUTION", "warn"];
+    document.getElementById("regime").innerHTML =
+      '<div class="stat"><div class="k">State</div><div class="v"><span class="pill ' +
+      state[1] + '">' + state[0] + '</span></div></div>' +
+      '<div class="stat"><div class="k">Nifty 50</div><div class="v">' + fmt(last) + '</div></div>' +
+      '<div class="stat"><div class="k">vs 200-SMA</div><div class="v ' + (above ? "pos" : "neg") + '">' +
+      (above ? "above" : "below") + '</div></div>' +
+      '<div class="stat"><div class="k">Drawdown from 1y high</div><div class="v ' +
+      (dd < -0.05 ? "neg" : "") + '">' + fmt(dd * 100, 1) + '%</div></div>' +
+      '<div class="stat"><div class="k">Playbook</div><div class="v" style="font-size:13px">' +
+      (state[0] === "EXPANSION" ? "full program" :
+       state[0] === "CAUTION" ? "size −25%, build lists" :
+       state[0] === "STRESS" ? "no new trading longs" : "staged buying by plan") +
+      '</div></div>';
+  }
+
+  /* ---- watchlist table ---- */
+  var results = {};
+  function renderRows() {
+    var tbody = document.getElementById("rows");
+    var rows = watch.map(function (s) { return results[s]; })
+                    .filter(Boolean)
+                    .sort(function (a, b) { return b.score - a.score; });
+    tbody.innerHTML = rows.map(function (r) {
+      var stagePill = r.stage === 2 ? "up" : r.stage === 4 ? "down" : "warn";
+      return '<tr class="row mono" data-sym="' + r.sym + '">' +
+        '<td style="font-family:Archivo,sans-serif;font-weight:700">' + r.sym + '</td>' +
+        '<td>' + fmt(r.last) + '</td>' +
+        '<td class="' + (r.dayPct >= 0 ? "pos" : "neg") + '">' + fmt(r.dayPct * 100, 2) + '%</td>' +
+        '<td><span class="pill ' + stagePill + '">Stage ' + r.stage + '</span></td>' +
+        '<td>' + fmt(r.rsi, 0) + '</td>' +
+        '<td class="' + (r.dist52 > -0.05 ? "pos" : "") + '">' + fmt(r.dist52 * 100, 1) + '%</td>' +
+        '<td>' + (r.mom == null ? "—" : fmt(r.mom * 100, 1) + "%") + '</td>' +
+        '<td>' + (r.setup ? '<span class="pill accent" style="background:var(--accent-soft);color:var(--accent)">' + r.setup + '</span>' : "—") + '</td>' +
+        '<td style="font-weight:600">' + r.score + '</td></tr>';
+    }).join("");
+    Array.prototype.forEach.call(tbody.querySelectorAll("tr.row"), function (tr) {
+      tr.addEventListener("click", function () { renderDetail(tr.dataset.sym); });
+    });
+  }
+
+  function renderDetail(sym) {
+    var r = results[sym];
+    if (!r) return;
+    var cap = +document.getElementById("capital").value || 1000000;
+    var riskPct = (+document.getElementById("riskpct").value || 0.75) / 100;
+    var entry = r.last;
+    var stop = Math.max(r.swingLow, entry - 2 * r.atr);
+    if (stop >= entry) stop = entry - 2 * r.atr;
+    var rps = entry - stop;
+    var qty = Math.floor(Math.min((cap * riskPct) / rps, (cap * 0.08) / entry));
+    var html = '<h2 style="margin-top:18px">' + sym + " — live trade plan" +
+      (r.stage !== 2 ? ' <span class="pill down">not in Stage 2 — plan shown for reference only</span>' : "") +
+      "</h2><div class='planrow'>" +
+      '<div class="stat"><div class="k">Entry ref</div><div class="v">₹' + fmt(entry) + '</div></div>' +
+      '<div class="stat" style="border-left-color:var(--down)"><div class="k">Stop</div><div class="v">₹' + fmt(stop) + '</div></div>' +
+      '<div class="stat" style="border-left-color:var(--up)"><div class="k">T1 · 1.5R</div><div class="v">₹' + fmt(entry + 1.5 * rps) + '</div></div>' +
+      '<div class="stat" style="border-left-color:var(--up)"><div class="k">T2 · 2.5R</div><div class="v">₹' + fmt(entry + 2.5 * rps) + '</div></div>' +
+      '<div class="stat"><div class="k">Qty (risk ' + (riskPct * 100).toFixed(2) + '%)</div><div class="v">' + qty + '</div></div>' +
+      '<div class="stat"><div class="k">ATR-14</div><div class="v">₹' + fmt(r.atr) + '</div></div>' +
+      "</div><p style='color:var(--muted);font-size:13px'>Stop is the tighter of the 20-day swing low and 2×ATR. Scale out half at T1, stop to breakeven, trail the rest. Remove: <button class='act' style='background:var(--down)' id='rmbtn'>Remove " + sym + "</button></p>";
+    document.getElementById("detail").innerHTML = html;
+    document.getElementById("rmbtn").addEventListener("click", function () {
+      watch = watch.filter(function (s) { return s !== sym; });
+      delete results[sym]; saveWatch(); renderRows();
+      document.getElementById("detail").innerHTML = "";
+    });
+  }
+
+  function loadAll() {
+    var status = document.getElementById("status");
+    var done = 0, fail = 0;
+    status.textContent = "loading 0/" + watch.length;
+    watch.forEach(function (sym) {
+      fetchHist(sym).then(function (d) {
+        var a = analyze(sym, d);
+        if (a) results[sym] = a; else fail++;
+      }).catch(function () { fail++; })
+        .finally(function () {
+          done++;
+          status.textContent = "loaded " + done + "/" + watch.length +
+                               (fail ? " (" + fail + " failed)" : "");
+          renderRows();
+        });
+    });
+  }
+
+  document.getElementById("addbtn").addEventListener("click", function () {
+    var s = document.getElementById("addsym").value.trim().toUpperCase();
+    if (!s || watch.indexOf(s) !== -1) return;
+    watch.push(s); saveWatch();
+    document.getElementById("addsym").value = "";
+    fetchHist(s).then(function (d) {
+      var a = analyze(s, d);
+      if (a) { results[s] = a; renderRows(); }
+      else document.getElementById("status").textContent = s + ": not enough history";
+    }).catch(function () {
+      document.getElementById("status").textContent = s + ": no data (check symbol)";
+      watch = watch.filter(function (x) { return x !== s; }); saveWatch();
+    });
+  });
+
+  /* ---- boot ---- */
+  fetchHist("^NSEI", "2y").then(function (d) {
+    renderRegime(d);
+    document.getElementById("livechip").textContent = "live";
+    var ts = d.timestamps && d.timestamps.length
+      ? new Date(d.timestamps[d.timestamps.length - 1] * 1000) : new Date();
+    document.getElementById("asof").textContent =
+      "data as of " + ts.toLocaleDateString("en-IN",
+        { day: "numeric", month: "short", year: "numeric" });
+  }).catch(function (e) {
+    document.getElementById("livechip").textContent = "offline";
+    document.getElementById("regime").innerHTML =
+      '<div class="notice err">Could not reach the data function: ' + e.message + '</div>';
+  });
+  loadAll();
+})();
+</script>
+</body>
+</html>
