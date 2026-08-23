@@ -25,6 +25,9 @@ Three properties matter:
 3. **The model is told the rules, in-band.** `rules` travels with the data, so a
    model that never read this file still gets the constraint.
 
+The rules also travel at the protocol level: the server's `instructions` field
+carries them, so a client receives the contract before the first tool call.
+
 ## Tools
 
 | Tool | Returns |
@@ -63,7 +66,7 @@ so explicitly instead of degrading into something less accurate.
 ## Running it
 
 ```bash
-pip install -r mcp-server/requirements.txt
+pip install -r mcp-server/requirements.txt   # needs mcp>=2.0
 # the tools read the advisor's local database, so populate it first:
 cd stock-advisor && bash run_live.sh --backfill
 ```

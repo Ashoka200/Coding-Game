@@ -17,14 +17,23 @@ _SRC = _REPO / "stock-advisor" / "src"
 if _SRC.exists() and str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from mcp.server import Server                      # noqa: E402
-from mcp.server.stdio import stdio_server          # noqa: E402
-from mcp.types import TextContent, Tool            # noqa: E402
+from mcp.server import MCPServer                  # noqa: E402
 
 from advisor_mcp import remote                                     # noqa: E402
-from advisor_mcp.envelope import missing_fields, ok, unavailable  # noqa: E402
+from advisor_mcp.envelope import RULES, missing_fields, ok, unavailable  # noqa: E402
 
-server = Server("advisor-360")
+# `instructions` reaches the client at the protocol level, so the never-guess
+# contract arrives before the first tool call rather than only alongside data.
+INSTRUCTIONS = (
+    "Verified market data for Indian equities (NSE/BSE). Use these tools instead of "
+    "any remembered price, ratio or date.\n\n"
+    "Every response has the same shape: `data` (what is known), `provenance` "
+    "(source and as-of date per field), `unknown` (fields no source supplied, with "
+    "reasons), `caveats`, and `rules`.\n\nRules that always apply:\n"
+    + "\n".join(f"- {r}" for r in RULES)
+)
+
+mcp_server = MCPServer("advisor-360", instructions=INSTRUCTIONS, version="1.0.0")
 
 # Hybrid resolution. Local first — it has stored history, point-in-time
 # fundamentals and your portfolio. The deployed console API is the fallback so
@@ -414,96 +423,85 @@ def tool_get_universe() -> dict:
                        "here; backtests still see them."])
 
 
-TOOLS = [
-    Tool(name="get_quote",
-         description="Verified end-of-day price and technical state for one NSE symbol. "
-                     "Use this instead of any remembered price.",
-         inputSchema={"type": "object", "properties": {
-             "symbol": {"type": "string", "description": "NSE symbol, e.g. RELIANCE"}},
-             "required": ["symbol"]}),
-    Tool(name="get_market_regime",
-         description="Current market state (expansion/caution/stress/crisis) with breadth "
-                     "and drawdown, computed from the stored universe.",
-         inputSchema={"type": "object", "properties": {}}),
-    Tool(name="get_fundamentals",
-         description="Stored fundamental values and the quality/growth/valuation score for one "
-                     "symbol. Fields the source did not supply are returned in `unknown` and "
-                     "must not be estimated.",
-         inputSchema={"type": "object", "properties": {
-             "symbol": {"type": "string"}}, "required": ["symbol"]}),
-    Tool(name="get_news",
-         description="Recent headlines for one symbol, classified by event type and weighted "
-                     "for direction and recency.",
-         inputSchema={"type": "object", "properties": {
-             "symbol": {"type": "string"},
-             "days": {"type": "integer", "description": "lookback window, default 14"}},
-             "required": ["symbol"]}),
-    Tool(name="get_verdict",
-         description="The advisor's action for one symbol (sell/trim/hold/watch/avoid/"
-                     "accumulate/buy) with conviction, horizon and the full nine-stage "
-                     "reasoning chain. Report the chain rather than inventing a rationale.",
-         inputSchema={"type": "object", "properties": {
-             "symbol": {"type": "string"},
-             "include_news": {"type": "boolean", "description": "default true"}},
-             "required": ["symbol"]}),
-    Tool(name="get_deep_dive",
-         description="Full published financial statements for one company — profit and loss, "
-                     "balance sheet, cash flow, ratios and shareholding as year-by-year series.",
-         inputSchema={"type": "object", "properties": {
-             "symbol": {"type": "string"}}, "required": ["symbol"]}),
-    Tool(name="get_portfolio",
-         description="Open positions with exit prices, weights, portfolio heat and alerts.",
-         inputSchema={"type": "object", "properties": {}}),
-    Tool(name="build_portfolio_plan",
-         description="Propose a complete portfolio for an amount. A PROPOSAL ONLY — this "
-                     "never places an order.",
-         inputSchema={"type": "object", "properties": {
-             "amount": {"type": "number", "description": "rupees to invest"},
-             "profile": {"type": "string", "enum": ["careful", "balanced", "ambitious"]}},
-             "required": ["amount"]}),
-    Tool(name="get_universe",
-         description="Symbols the local database currently tracks.",
-         inputSchema={"type": "object", "properties": {}}),
-]
-
-HANDLERS = {
-    "get_quote": lambda a: tool_get_quote(a["symbol"].upper()),
-    "get_market_regime": lambda a: tool_get_market_regime(),
-    "get_fundamentals": lambda a: tool_get_fundamentals(a["symbol"].upper()),
-    "get_news": lambda a: tool_get_news(a["symbol"].upper(), int(a.get("days", 14))),
-    "get_verdict": lambda a: tool_get_verdict(a["symbol"].upper(),
-                                              bool(a.get("include_news", True))),
-    "get_deep_dive": lambda a: tool_get_deep_dive(a["symbol"].upper()),
-    "get_portfolio": lambda a: tool_get_portfolio(),
-    "build_portfolio_plan": lambda a: tool_build_portfolio_plan(
-        float(a["amount"]), str(a.get("profile", "balanced")).lower()),
-    "get_universe": lambda a: tool_get_universe(),
-}
+# --------------------------------------------------------------- MCP interface
+# Thin wrappers: schemas are inferred from the signatures, descriptions from the
+# docstrings. The engine functions above stay plain and testable.
 
 
-@server.list_tools()
-async def list_tools() -> list[Tool]:
-    return TOOLS
+def _safe(fn, label, *args, **kwargs) -> dict:
+    """Never let an exception become a guess."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as exc:
+        return unavailable(label, f"the engine raised: {type(exc).__name__}: {exc}")
 
 
-@server.call_tool()
-async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-    handler = HANDLERS.get(name)
-    if handler is None:
-        payload = unavailable(name, "unknown tool")
-    else:
-        try:
-            payload = handler(arguments or {})
-        except Exception as exc:                   # never fail into a guess
-            payload = unavailable(name, f"the engine raised: {type(exc).__name__}: {exc}")
-    return [TextContent(type="text", text=json.dumps(payload, indent=2, default=str))]
+@mcp_server.tool()
+def get_quote(symbol: str) -> dict:
+    """Verified end-of-day price and technical state for one NSE symbol.
+    Use this instead of any remembered price."""
+    return _safe(tool_get_quote, "quote", symbol.upper())
 
 
-async def main() -> None:
-    async with stdio_server() as (read, write):
-        await server.run(read, write, server.create_initialization_options())
+@mcp_server.tool()
+def get_market_regime() -> dict:
+    """Current market state (expansion/caution/stress/crisis) with breadth and
+    drawdown, and whether new risk-taking is allowed."""
+    return _safe(tool_get_market_regime, "market regime")
+
+
+@mcp_server.tool()
+def get_fundamentals(symbol: str) -> dict:
+    """Fundamental values and the quality/growth/valuation score for one symbol.
+    Fields no source supplied are returned in `unknown` and must not be estimated."""
+    return _safe(tool_get_fundamentals, "fundamentals", symbol.upper())
+
+
+@mcp_server.tool()
+def get_news(symbol: str, days: int = 14) -> dict:
+    """Recent headlines for one symbol, classified by event type and weighted for
+    direction and recency."""
+    return _safe(tool_get_news, "news", symbol.upper(), days)
+
+
+@mcp_server.tool()
+def get_verdict(symbol: str, include_news: bool = True) -> dict:
+    """The advisor's action for one symbol (sell/trim/hold/watch/avoid/accumulate/buy)
+    with conviction, horizon and the full nine-stage reasoning chain. Report the chain
+    rather than inventing a rationale."""
+    return _safe(tool_get_verdict, "verdict", symbol.upper(), include_news)
+
+
+@mcp_server.tool()
+def get_deep_dive(symbol: str) -> dict:
+    """Full published financial statements for one company — profit and loss, balance
+    sheet, cash flow, ratios and shareholding as year-by-year series."""
+    return _safe(tool_get_deep_dive, "deep dive", symbol.upper())
+
+
+@mcp_server.tool()
+def get_portfolio() -> dict:
+    """Open positions with exit prices, weights, portfolio heat and alerts.
+    Local database only."""
+    return _safe(tool_get_portfolio, "portfolio")
+
+
+@mcp_server.tool()
+def build_portfolio_plan(amount: float, profile: str = "balanced") -> dict:
+    """Propose a complete portfolio for an amount (profile: careful, balanced or
+    ambitious). A PROPOSAL ONLY — this never places an order."""
+    return _safe(tool_build_portfolio_plan, "plan", float(amount), profile.lower())
+
+
+@mcp_server.tool()
+def get_universe() -> dict:
+    """Symbols the local database currently tracks."""
+    return _safe(tool_get_universe, "universe")
+
+
+def main() -> None:
+    mcp_server.run(transport="stdio")
 
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
