@@ -45,6 +45,29 @@ it is overfit noise wearing a lab coat.
 - **Paper period:** 2 quarters of live paper predictions logged in the journal before
   the model influences a single rupee of sizing.
 
+## What was actually built (and why it takes this shape)
+
+Two modules implement the sanctioned half of this doctrine.
+
+**`predict.py` — conditional base rates, not price targets.** It answers a
+narrow, answerable question: *when this stock last looked exactly like it looks
+today, what happened over the next N sessions, and how often?* Three rules make
+it honest: no probability at all below 30 matching days; every figure compared
+against the unconditional base rate (Indian equities rise in roughly 53% of
+20-day windows, so "55% chance of a gain" is almost no information); and a
+Wilson interval, which stays wide when evidence is thin. When the interval
+straddles the base rate the verdict is "no edge — indistinguishable from the
+base rate", which is the most common honest answer.
+
+**`sentiment.py` — a language model reading text, never producing numbers.**
+Keyword matching misreads exactly the headlines that matter: "profit falls less
+than feared" (positive), "denies allegations" (negative — the allegation is the
+news), "record profit on a one-off land sale" (not operating strength). The
+model classifies direction, materiality, and whether an item is confirmed fact
+or speculation, and is explicitly forbidden from estimating prices, targets or
+valuations. Sentiment may nudge a base rate by at most five percentage points
+and can never create a forecast where the history did not support one.
+
 ## Ongoing operation
 
 - Retrain on a fixed calendar (quarterly), never on drawdown-triggered panic retunes.
