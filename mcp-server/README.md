@@ -45,6 +45,8 @@ carries them, so a client receives the contract before the first tool call.
 | `get_credit` | Altman-Z, Beneish-M, Piotroski-F, maturity wall, covenant headroom |
 | `analyse_special_situation` | buyback, open offer, rights, merger, delisting, demerger arithmetic |
 | `get_portfolio_risk` | VaR, expected shortfall, crisis stress, correlation |
+| `get_forecast` | historical base rate for today's signal state, with sample size and interval |
+| `get_sentiment` | news read by a language model, not keyword-matched |
 | `get_deep_dive` | full published statements — P&L, balance sheet, cash flow, ratios, shareholding |
 
 No tool places an order. Order preparation stays in the CLI, behind explicit

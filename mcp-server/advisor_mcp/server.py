@@ -511,6 +511,65 @@ def tool_portfolio_risk() -> dict:
                        "it — read the expected-shortfall figure alongside."])
 
 
+def tool_forecast(symbol: str, horizon_days: int = 20) -> dict:
+    """Base-rate forecast from stored history, optionally nudged by news."""
+    from advisor.predict import blend_with_sentiment, forecast
+    from advisor import db
+    from advisor.screener import _load_symbol_df
+    if not _db_ready():
+        return unavailable("forecast", "base rates need stored history; this is a "
+                                       "local-database capability")
+    with db.connect() as conn:
+        frame = _load_symbol_df(conn, symbol)
+    if frame.empty:
+        return unavailable("forecast", f"no stored history for {symbol}")
+    close = frame["close"].tolist()
+    high = frame["high"].tolist()
+    low = frame["low"].tolist()
+    f = forecast(symbol, close, high, low, horizon=horizon_days)
+
+    sentiment_score = None
+    try:
+        from advisor.news import fetch_news
+        from advisor.sentiment import analyse as read_sentiment
+        items = [i.to_dict() for i in fetch_news(symbol)]
+        if items:
+            read = read_sentiment(symbol, items)
+            sentiment_score = read.score
+            f = blend_with_sentiment(f, sentiment_score)
+    except Exception:
+        pass
+
+    return ok(f.to_dict(),
+              provenance=[{"field": "outcomes", "source": "advisor database (stored EOD)",
+                           "as_of": str(frame.index[-1].date())},
+                          {"field": "sentiment adjustment",
+                           "source": "news sentiment" if sentiment_score is not None
+                                     else "not applied", "as_of": "now"}],
+              caveats=["This is a base rate from comparable past days, NOT a prediction "
+                       "about this instance. Report the sample size and the interval "
+                       "with any probability you quote.",
+                       "Never convert this into a price target. The engines produce no "
+                       "such number, and neither should you."])
+
+
+def tool_sentiment(symbol: str) -> dict:
+    """What the news actually says, read rather than pattern-matched."""
+    from advisor.sentiment import analyse as read_sentiment
+    try:
+        items, _press, news_source = _resolve_news(symbol, 14)
+    except LookupError as exc:
+        return unavailable("sentiment", f"no headlines could be fetched: {exc}")
+    read = read_sentiment(symbol, items)
+    return ok(read.to_dict(),
+              provenance=[{"field": "headlines", "source": news_source, "as_of": "now"},
+                          {"field": "classification",
+                           "source": f"{read.method} scoring", "as_of": "now"}],
+              caveats=["Headlines are third-party reporting, not verified fact.",
+                       "The model classifies text only. Every price and ratio in this "
+                       "system comes from the engines."] + read.caveats)
+
+
 def tool_get_portfolio() -> dict:
     if not _db_ready():
         return unavailable("portfolio",
@@ -657,6 +716,22 @@ def get_portfolio_risk() -> dict:
     """Value at risk, expected shortfall, crisis stress scenarios and correlation
     diagnostics across current holdings. Local database only."""
     return _safe(tool_portfolio_risk, "portfolio risk")
+
+
+@mcp_server.tool()
+def get_forecast(symbol: str, horizon_days: int = 20) -> dict:
+    """Historical base rate: when this stock last looked like it looks today, what
+    happened over the next N sessions, how often, and with what sample size. Returns
+    no probability at all when too few comparable days exist."""
+    return _safe(tool_forecast, "forecast", symbol.upper(), int(horizon_days))
+
+
+@mcp_server.tool()
+def get_sentiment(symbol: str) -> dict:
+    """News sentiment read by a language model rather than keyword-matched, so
+    negation, denials and one-off gains are interpreted correctly. Returns direction,
+    materiality, confirmation status and how much the coverage disagrees with itself."""
+    return _safe(tool_sentiment, "sentiment", symbol.upper())
 
 
 @mcp_server.tool()
