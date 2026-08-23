@@ -5,16 +5,31 @@ the data sources, and stores history in Netlify Blobs so the whole system has
 real series to work with — 200-day averages, market breadth, backtests — rather
 than a single snapshot.
 
-## One-time: populate the store
+## It populates itself
+
+Opening the site is enough. When any data endpoint finds the store empty and no
+job running, it starts the backfill in the background — the request is never
+delayed, and if the store is ever wiped it refills on the next visit.
+
+To start it deliberately:
 
 ```bash
 curl -X POST "https://advisor-360-live.netlify.app/api/backfill-background"
 ```
 
-That fetches ~10 years of daily history for the tracked universe plus the Nifty
-and Bank Nifty indices, and writes it to the store. It runs as a Netlify
-*background* function, so it has a 15-minute budget rather than the usual 10
-seconds.
+## Bigger than one invocation, so the job resumes
+
+A full Nifty 500 × 10-year pull does not fit in a single function run. The work
+is a **resumable job**: each run processes symbols until its time budget is
+nearly spent, saves a cursor, and re-invokes itself to continue. Progress is
+written after every batch, so a crashed runner loses nothing — a resume picks up
+exactly where it stopped.
+
+If a run ever stalls, continue it with:
+
+```bash
+curl -X POST "https://advisor-360-live.netlify.app/api/backfill-background?resume=1"
+```
 
 Check how it went — this is the honest answer, not a guess:
 
@@ -23,8 +38,13 @@ curl "https://advisor-360-live.netlify.app/api/data-status"
 curl "https://advisor-360-live.netlify.app/api/data-status?symbol=RELIANCE"
 ```
 
-It reports how many symbols are stored, which source supplied the universe, the
-last few runs with their failures, and whether the store is `ready`.
+It reports live job progress (`done`, `failed`, `percent`, and whether the state
+is running/finished/stalled), how many symbols are stored, which source supplied
+the universe, the last few runs with their failures, and whether the store is
+`ready`.
+
+A symbol that fails is recorded as failed and **never written with substituted
+data** — the store holds only real bars.
 
 Useful parameters while testing:
 

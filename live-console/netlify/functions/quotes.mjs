@@ -2,6 +2,7 @@
 // Batch last-price + 1y history summary for the planner, in one round trip.
 // Server-side (no CORS, no sandbox limits), edge-cached.
 
+import { maybeAutoStart } from "./_autostart.mjs";
 import { getSeries } from "./_store.mjs";
 
 const MAX_SYMBOLS = 25;
@@ -134,6 +135,9 @@ export default async (req) => {
   if (!symbols.every((s) => /^[\^A-Z0-9&.-]{1,20}$/.test(s))) {
     return Response.json({ error: "bad symbol" }, { status: 400 });
   }
+
+  // If the store is empty, start filling it — without delaying this request.
+  maybeAutoStart().catch(() => {});
 
   try {
     const quotes = await Promise.all(symbols.map(async (sym) => {

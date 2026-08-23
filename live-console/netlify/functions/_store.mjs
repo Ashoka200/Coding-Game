@@ -76,6 +76,34 @@ export async function getUniverse() {
   }
 }
 
+/* ---- resumable job state ----
+   A full Nifty 500 pull is larger than one function invocation, so the work is a
+   job with a cursor: each run processes a slice, saves progress, and the next
+   run resumes exactly where it stopped. Nothing is re-fetched needlessly and
+   nothing is silently skipped. */
+
+export async function getJob() {
+  try {
+    return await metaStore().get("job", { type: "json" });
+  } catch {
+    return null;
+  }
+}
+
+export async function putJob(job) {
+  await metaStore().setJSON("job", { ...job, updated_at: new Date().toISOString() });
+}
+
+export async function clearJob() {
+  try { await metaStore().delete("job"); } catch { /* already gone */ }
+}
+
+/** A job is stale (its runner died) if nothing has updated it for a while. */
+export function jobIsStale(job, minutes = 20) {
+  if (!job?.updated_at) return true;
+  return Date.now() - new Date(job.updated_at).getTime() > minutes * 60_000;
+}
+
 export async function logRun(entry) {
   const store = metaStore();
   let log = [];
