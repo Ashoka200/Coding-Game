@@ -40,6 +40,11 @@ carries them, so a client receives the contract before the first tool call.
 | `get_portfolio` | open positions, exit prices, portfolio heat |
 | `build_portfolio_plan` | a complete proposed plan for an amount (proposal only) |
 | `get_universe` | tradeable symbols the local database knows |
+| `get_valuation` | DCF, the growth the price already assumes, relative multiples |
+| `get_ownership` | promoter/FII/DII movement, and who is selling to whom |
+| `get_credit` | Altman-Z, Beneish-M, Piotroski-F, maturity wall, covenant headroom |
+| `analyse_special_situation` | buyback, open offer, rights, merger, delisting, demerger arithmetic |
+| `get_portfolio_risk` | VaR, expected shortfall, crisis stress, correlation |
 | `get_deep_dive` | full published statements — P&L, balance sheet, cash flow, ratios, shareholding |
 
 No tool places an order. Order preparation stays in the CLI, behind explicit
