@@ -1,0 +1,9 @@
+{
+  "name": "advisor-360-live",
+  "private": true,
+  "type": "module",
+  "description": "Serverless data layer for the 360° Advisor console",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
