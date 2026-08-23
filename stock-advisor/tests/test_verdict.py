@@ -110,3 +110,51 @@ def test_news_classification_and_pressure():
     assert pressure([fresh_bad])["tone"] == "negative"
     assert pressure([])["tone"] == "mixed"
     assert pressure([fresh_bad])["material_count"] == 1
+
+
+# ---------- book-aware conflict resolution ----------
+
+CHEAP_SOUND = {"pe": 12, "roe": 0.19, "roce": 0.21, "debt_to_equity": 0.3,
+               "interest_cover": 9}
+DOWNTREND = dict(FEAT, close=80.0, rsi14=38.0, dist_52w_high=-0.28)
+
+
+def test_trading_book_refuses_a_contested_trade():
+    v = decide("X", DOWNTREND, CHEAP_SOUND, 72, stage=4, regime_risk_on=True,
+               book="trading")
+    assert v.action == "WATCH"
+    assert v.conflict is not None
+    assert v.conviction <= 40
+    assert "does not take contested trades" in v.horizon
+    assert any(s.stage == "Resolution" for s in v.chain)
+
+
+def test_investing_book_lets_fundamentals_decide_and_the_trend_time():
+    v = decide("X", DOWNTREND, CHEAP_SOUND, 72, stage=4, regime_risk_on=True,
+               book="investing")
+    assert v.action == "WATCH"                     # wait for the turn, do not avoid
+    assert v.conflict is not None
+    assert any("business decides" in s.finding for s in v.chain)
+    assert v.horizon.startswith("Long term")       # still a long-term case
+
+
+def test_expensive_uptrend_is_flagged_as_momentum_not_value():
+    dear = {"pe": 85, "roe": 0.14, "debt_to_equity": 0.4}
+    v = decide("X", FEAT, dear, 58, stage=2, regime_risk_on=True, book="investing")
+    assert v.conflict is not None and "momentum, not value" in v.conflict
+
+
+def test_no_conflict_when_models_agree():
+    v = decide("X", FEAT, CHEAP_SOUND, 75, stage=2, regime_risk_on=True,
+               book="trading")
+    assert v.conflict is None
+    assert v.action in ("BUY", "ACCUMULATE")
+
+
+def test_valuation_lens_outranks_a_bare_multiple():
+    val = {"margin_of_safety": 0.35, "fair_value_base": 150.0, "implied_growth": 0.06}
+    v = decide("X", FEAT, {"pe": 70}, 70, stage=2, regime_risk_on=True,
+               valuation=val)
+    finding = next(s.finding for s in v.chain if s.stage == "Valuation")
+    assert "margin of safety" in finding and "+35%" in finding
+    assert "already assumes" in finding             # reverse DCF surfaced

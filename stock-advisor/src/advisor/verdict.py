@@ -14,6 +14,15 @@ the answer reproducible and auditable instead of a judgement call:
     8 Horizon       long-term (business) or short-term (trend)?
     9 Synthesis     action, conviction, levels, and the chain that produced them
 
+Conflicts are resolved differently by book, because the two books are playing
+different games (owner's instruction):
+
+    INVESTING  fundamentals decide, the trend only times the entry. A cheap,
+               sound business in a downtrend is a "wait", not an "avoid".
+    TRADING    a genuine conflict returns NO POSITION with both cases stated.
+               In a book that lives by the exit price, ambiguity is a reason to
+               stand aside, not to pick a side.
+
 Nothing here estimates a missing figure. An unknown stays unknown and lowers
 the confidence ceiling instead.
 """
@@ -39,6 +48,8 @@ class Verdict:
     chain: list[Step] = field(default_factory=list)
     levels: dict | None = None
     short_case: bool = False
+    book: str = "investing"
+    conflict: str | None = None
     unknowns: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -65,7 +76,8 @@ def _levels(features: dict | None) -> dict | None:
 def decide(symbol: str, features: dict | None = None, fundamentals: dict | None = None,
            fundamental_score: float | None = None, news_items: list | None = None,
            news_pressure: dict | None = None, stage: int | None = None,
-           regime_risk_on: bool = True, holding: dict | None = None) -> Verdict:
+           regime_risk_on: bool = True, holding: dict | None = None,
+           book: str = "investing", valuation: dict | None = None) -> Verdict:
     """Run the nine stages. Every argument may be None — missing evidence lowers
     the confidence ceiling rather than being filled in."""
     chain: list[Step] = []
@@ -92,11 +104,13 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
         "recent news" if have_news else "no news",
     ])) + f". Confidence is capped at {ceiling} because of what is missing.")
 
-    def finish(action: str, conv: float, horizon: str, short_case: bool = False) -> Verdict:
+    def finish(action: str, conv: float, horizon: str, short_case: bool = False,
+               conflict: str | None = None) -> Verdict:
         return Verdict(symbol=symbol, action=action,
                        conviction=int(max(5, min(ceiling, round(conv)))),
                        horizon=horizon, chain=chain, levels=_levels(features),
-                       short_case=short_case, unknowns=unknowns)
+                       short_case=short_case, book=book, conflict=conflict,
+                       unknowns=unknowns)
 
     # --- 1: hard vetoes ----------------------------------------------------
     veto = None
@@ -151,12 +165,27 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
         step("Business", "No financials available, so nothing here can be a long-term call.")
 
     # --- 4: valuation ------------------------------------------------------
-    valuation = "unknown"
-    if fundamentals and fundamentals.get("pe") and fundamentals["pe"] > 0:
+    # A discounted-cash-flow view outranks a bare multiple when it exists: the
+    # multiple tells you what you pay, the DCF tells you what you get.
+    val_in = valuation if isinstance(valuation, dict) else None   # capture before rebinding
+    valuation = "unknown"                                          # now the category
+    if val_in and val_in.get("margin_of_safety") is not None:
+        mos = val_in["margin_of_safety"]
+        valuation = ("cheap" if mos > 0.15 else "fair" if mos > -0.15
+                     else "rich" if mos > -0.35 else "extreme")
+        bits = [f"Fair value about {val_in.get('fair_value_base')}, "
+                f"a margin of safety of {mos:+.0%} — {valuation}"]
+        if val_in.get("implied_growth") is not None:
+            bits.append(f"the price already assumes {val_in['implied_growth']:.1%} "
+                        "annual cash-flow growth")
+        step("Valuation", "; ".join(bits) + ".")
+        conviction += {"cheap": 12, "fair": 3, "rich": -8, "extreme": -16}[valuation]
+    elif fundamentals and fundamentals.get("pe") and fundamentals["pe"] > 0:
         pe = fundamentals["pe"]
         valuation = ("cheap" if pe < 18 else "fair" if pe < 35
                      else "rich" if pe < 60 else "extreme")
-        step("Valuation", f"P/E of {pe:.1f} — {valuation}.")
+        step("Valuation", f"P/E of {pe:.1f} — {valuation}. (No cash-flow valuation "
+                          "available, so this is what you pay, not what you get.)")
         conviction += {"cheap": 10, "fair": 3, "rich": -6, "extreme": -14}[valuation]
     else:
         unknowns.append("valuation")
@@ -200,6 +229,37 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
         horizon = "No horizon qualifies — neither the business nor the trend supports a position"
     step("Horizon", horizon)
 
+    # --- 8b: conflict detection --------------------------------------------
+    # A conflict is the models disagreeing about direction, not merely being
+    # lukewarm: cheap-and-falling, or expensive-and-rising.
+    conflict = None
+    cheap = valuation in ("cheap",)
+    dear = valuation in ("rich", "extreme")
+    sound = quality is not None and quality >= 55
+    weak_trend = st in (3, 4)
+    strong_trend = st == 2
+    if cheap and sound and weak_trend:
+        conflict = ("The numbers say cheap and sound; the price says the market "
+                    "disagrees. One of them is wrong, and the market usually knows "
+                    "something first.")
+    elif dear and strong_trend:
+        conflict = ("The trend is strong but the price already assumes a great deal. "
+                    "You would be buying momentum, not value.")
+
+    if conflict:
+        step("Conflict", conflict)
+        if book == "trading":
+            # In the trading book, ambiguity is a reason to stand aside: this book
+            # lives by the exit price, and a contested thesis has no clean one.
+            step("Resolution", "Trading book: a genuine conflict returns no position. "
+                               "Both cases are stated above; neither is adopted.")
+            return finish("HOLD" if holding else "WATCH", min(conviction, 40),
+                          "No horizon — the models disagree and this book does not "
+                          "take contested trades", conflict=conflict)
+        step("Resolution", "Investing book: the business decides and the trend only "
+                           "times the entry. A sound, cheap business in a downtrend "
+                           "is a wait, not an avoid.")
+
     # --- 9: synthesis ------------------------------------------------------
     action = forced_action
     if action is None:
@@ -207,6 +267,9 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
         good = quality is not None and quality >= 65
         if st == 4 and (bad or tone == "negative"):
             action = "SELL" if holding else "AVOID"
+        elif st == 4 and book == "investing" and good and valuation in ("cheap", "fair"):
+            # fundamentals decide, the trend only times: wait for the turn
+            action = "HOLD" if holding else "WATCH"
         elif st == 4:
             action = "HOLD" if holding else "WATCH"
         elif holding:
@@ -233,4 +296,4 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
         step("Short?", "The bear case is real, but a naked short has unlimited loss and Indian "
                        "cash-market shorts must be squared off the same day. Use a defined-risk "
                        "bear put spread sized to 0.5–1% of capital — never a naked short.")
-    return finish(action, conviction, horizon, short_case)
+    return finish(action, conviction, horizon, short_case, conflict)
