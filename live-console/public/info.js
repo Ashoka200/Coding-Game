@@ -5,6 +5,12 @@
   "use strict";
 
   var G = {
+    /* ---- verdicts and news ---- */
+    verdict: ["The verdict", "One action per stock, reached through the same nine steps every time: what evidence exists, hard vetoes, your position, the business, the price, the news, the trend, the market, then the horizon.<br><br>Open any verdict to see every step. If the reasoning looks wrong to you, that is useful — the chain is there so you can argue with it."],
+    conviction: ["Conviction", "0–100, how much weight to put on this verdict. It is <em>capped</em> by the evidence available: with no financials it cannot exceed 60, because a long-term judgement without financial statements is a guess wearing a number."],
+    horizon: ["Long term or short term", "<strong>Long term</strong> — the case rests on the business compounding, so it is measured in years and judged on results, not price.<br><strong>Short term</strong> — the case rests on the trend, so it lives and dies by the exit price.<br><br>Trouble starts when a failed short-term trade is quietly reclassified as a long-term investment."],
+    newstone: ["News tone", "Headlines classified by event type — results, order wins, downgrades, regulatory action, litigation — then weighted by how serious and how recent each is.<br><br>Recent and grave counts most. The advisor never acts on a headline alone: news raises a question, the numbers answer it."],
+    shorting: ["Why not just short it?", "A naked short has no ceiling on the loss, and in India cash-market shorts must be squared off the same day. When the bear case is real, the advisor suggests a defined-risk bear put spread sized to 0.5–1% of capital instead — same view, known worst case."],
     /* ---- price & trend ---- */
     price: ["Price", "The last traded price. End-of-day here — during market hours your broker will show a slightly different number."],
     day: ["Day change", "How much the price moved since <em>yesterday's</em> close. A normal day is under 2%; anything past 5% means news, results, or a corporate action."],
@@ -116,6 +122,7 @@
 (function () {
   "use strict";
   var GROUPS = [
+    ["Verdicts and news", ["verdict","conviction","horizon","newstone","shorting"]],
     ["Price and trend", ["price","day","trend","rsi","from52","mom6m","volatility","score"]],
     ["Trade suggestions", ["setup","buyzone","stop","target","rr"]],
     ["Market conditions", ["regime"]],
