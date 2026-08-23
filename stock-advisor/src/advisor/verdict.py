@@ -17,11 +17,14 @@ the answer reproducible and auditable instead of a judgement call:
 Conflicts are resolved differently by book, because the two books are playing
 different games (owner's instruction):
 
-    INVESTING  fundamentals decide, the trend only times the entry. A cheap,
-               sound business in a downtrend is a "wait", not an "avoid".
-    TRADING    a genuine conflict returns NO POSITION with both cases stated.
-               In a book that lives by the exit price, ambiguity is a reason to
-               stand aside, not to pick a side.
+    INVESTING  cash equity held for years. Fundamentals decide, the trend only
+               times the entry. A cheap, sound business in a downtrend is a
+               "wait", not an "avoid" — you have time, so you can wait for the
+               turn.
+    FNO        futures and options. A genuine conflict returns NO POSITION with
+               both cases stated. Derivatives expire: you cannot wait out a
+               contested thesis, and time decay bills you for the ambiguity.
+               Standing aside is the position.
 
 Nothing here estimates a missing figure. An unknown stays unknown and lowers
 the confidence ceiling instead.
@@ -77,7 +80,8 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
            fundamental_score: float | None = None, news_items: list | None = None,
            news_pressure: dict | None = None, stage: int | None = None,
            regime_risk_on: bool = True, holding: dict | None = None,
-           book: str = "investing", valuation: dict | None = None) -> Verdict:
+           book: str = "investing", valuation: dict | None = None,
+           ownership: dict | None = None) -> Verdict:
     """Run the nine stages. Every argument may be None — missing evidence lowers
     the confidence ceiling rather than being filled in."""
     chain: list[Step] = []
@@ -190,6 +194,34 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
     else:
         unknowns.append("valuation")
 
+    # --- 4b: ownership -----------------------------------------------------
+    # What informed money DID, which outranks what anyone said about it.
+    if ownership:
+        flags = ownership.get("flags") or []
+        score = ownership.get("smart_money_score")
+        flow = ownership.get("flow")
+        bits = []
+        if score is not None:
+            bits.append(f"ownership score {score}/100")
+        if flow and flow not in ("unknown", "stable"):
+            bits.append(f"flow reads as {flow}")
+        if any(f.startswith("promoter_selling") for f in flags):
+            bits.append("promoters have been selling")
+        step("Ownership", ("; ".join(bits) + "." ) if bits
+             else "No unusual movement among informed holders.")
+        if any(f == "promoter_selling:high" for f in flags):
+            conviction -= 18
+        elif any(f.startswith("promoter_selling") for f in flags):
+            conviction -= 8
+        if "distribution_to_retail" in flags:
+            conviction -= 10
+        if flow == "accumulation":
+            conviction += 8
+        if any(f.startswith("pledge_") for f in flags):
+            conviction -= 12
+    else:
+        unknowns.append("ownership")
+
     # --- 5: news overlay ---------------------------------------------------
     tone = "none"
     if have_news:
@@ -248,14 +280,16 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
 
     if conflict:
         step("Conflict", conflict)
-        if book == "trading":
-            # In the trading book, ambiguity is a reason to stand aside: this book
-            # lives by the exit price, and a contested thesis has no clean one.
-            step("Resolution", "Trading book: a genuine conflict returns no position. "
-                               "Both cases are stated above; neither is adopted.")
+        if book in ("fno", "trading"):
+            # Options expire. You cannot wait out a contested thesis, and theta
+            # bills you daily for the ambiguity — so standing aside IS the position.
+            step("Resolution", "F&O book: a genuine conflict returns no position. "
+                               "Both cases are stated above; neither is adopted. "
+                               "A contested view cannot be held through time decay.")
             return finish("HOLD" if holding else "WATCH", min(conviction, 40),
-                          "No horizon — the models disagree and this book does not "
-                          "take contested trades", conflict=conflict)
+                          "No horizon — the models disagree, and an expiring "
+                          "instrument is the wrong way to hold a contested view",
+                          conflict=conflict)
         step("Resolution", "Investing book: the business decides and the trend only "
                            "times the entry. A sound, cheap business in a downtrend "
                            "is a wait, not an avoid.")

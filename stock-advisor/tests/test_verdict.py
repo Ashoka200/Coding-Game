@@ -119,13 +119,13 @@ CHEAP_SOUND = {"pe": 12, "roe": 0.19, "roce": 0.21, "debt_to_equity": 0.3,
 DOWNTREND = dict(FEAT, close=80.0, rsi14=38.0, dist_52w_high=-0.28)
 
 
-def test_trading_book_refuses_a_contested_trade():
+def test_fno_book_refuses_a_contested_trade():
     v = decide("X", DOWNTREND, CHEAP_SOUND, 72, stage=4, regime_risk_on=True,
-               book="trading")
+               book="fno")
     assert v.action == "WATCH"
     assert v.conflict is not None
     assert v.conviction <= 40
-    assert "does not take contested trades" in v.horizon
+    assert "expiring instrument" in v.horizon
     assert any(s.stage == "Resolution" for s in v.chain)
 
 
@@ -146,7 +146,7 @@ def test_expensive_uptrend_is_flagged_as_momentum_not_value():
 
 def test_no_conflict_when_models_agree():
     v = decide("X", FEAT, CHEAP_SOUND, 75, stage=2, regime_risk_on=True,
-               book="trading")
+               book="fno")
     assert v.conflict is None
     assert v.action in ("BUY", "ACCUMULATE")
 
@@ -158,3 +158,32 @@ def test_valuation_lens_outranks_a_bare_multiple():
     finding = next(s.finding for s in v.chain if s.stage == "Valuation")
     assert "margin of safety" in finding and "+35%" in finding
     assert "already assumes" in finding             # reverse DCF surfaced
+
+
+# ---------- ownership gate ----------
+
+def test_promoter_selling_lowers_conviction_through_the_ownership_gate():
+    own_bad = {"smart_money_score": 28, "flow": "distribution",
+               "flags": ["promoter_selling:high", "distribution_to_retail"]}
+    own_good = {"smart_money_score": 72, "flow": "accumulation", "flags": []}
+    bad = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True,
+                 ownership=own_bad)
+    good = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True,
+                  ownership=own_good)
+    assert bad.conviction < good.conviction - 20
+    assert any(s.stage == "Ownership" for s in bad.chain)
+    assert any("promoters have been selling" in s.finding for s in bad.chain)
+
+
+def test_missing_ownership_is_recorded_as_a_gap():
+    v = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True)
+    assert "ownership" in v.unknowns
+
+
+def test_pledge_flag_is_penalised():
+    pledged = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True,
+                     ownership={"smart_money_score": 45, "flow": "stable",
+                                "flags": ["pledge_high"]})
+    clean = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True,
+                   ownership={"smart_money_score": 45, "flow": "stable", "flags": []})
+    assert pledged.conviction < clean.conviction
