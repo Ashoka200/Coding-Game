@@ -18,7 +18,7 @@ from advisor.portfolio import snapshot
 from advisor.regime import compute_regime, last_state
 from advisor.screener import _load_symbol_df, run_screen
 
-st.set_page_config(page_title="360° Advisor", layout="wide")
+st.set_page_config(page_title="Astraveda Wealth Management", layout="wide")
 st.title("360° Stock Investor Advisory")
 
 tab_regime, tab_screen, tab_pf, tab_stock = st.tabs(

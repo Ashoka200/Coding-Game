@@ -18,7 +18,7 @@
     balanced:  { mix:[0.60,0.30,0.10], maxPos:0.08, stopMult:2.0, names:5 },
     ambitious: { mix:[0.50,0.40,0.10], maxPos:0.12, stopMult:2.0, names:6 },
   };
-  var S = { quotes:{}, nifty:null, riskOn:true, plan:null,
+  var S = { quotes:{}, nifty:null, riskOn:true, regime:null, plan:null,
             amount:1000000, profile:"balanced" };
 
   function el(id) { return document.getElementById(id); }
@@ -105,16 +105,45 @@
     return out;
   }
 
+  /* The desk note: the day's letterhead. It states the date and the two facts
+     that condition everything below it — where the index stands, and what the
+     regime machine calls that. Never a slogan; if there is nothing to say the
+     panel simply carries the date. */
+  function deskHead() {
+    var n = S.nifty, day = n && n.prevClose ? n.last / n.prevClose - 1 : null;
+    var when = new Date().toLocaleDateString("en-IN",
+      { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    var pulse = "";
+    if (n && n.last != null) {
+      pulse += '<div><div class="k">Nifty 50</div><div class="v">' +
+        num(n.last) + "</div></div>";
+      if (day != null) {
+        pulse += '<div><div class="k">Today</div><div class="v ' +
+          (day >= 0 ? "up" : "down") + '">' + pct(day, 2) + "</div></div>";
+      }
+    }
+    if (S.regime) {
+      pulse += '<div><div class="k">Regime</div><div class="v">' +
+        esc(S.regime) + "</div></div>";
+    }
+    return '<div class="deskhead"><div class="watermark" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24"><path fill="#C9A24D" d="M12 1.6l2.3 6.6 6.9.3-5.4 4.3' +
+      ' 1.9 6.7L12 15.7 6.3 19.5l1.9-6.7-5.4-4.3 6.9-.3z"/></svg></div>' +
+      '<div class="left"><div class="eyebrow">Astraveda desk note</div>' +
+      "<h1>Today</h1>" + '<div class="when">' + esc(when) + "</div></div>" +
+      (pulse ? '<div class="pulse">' + pulse + "</div>" : "") + "</div>";
+  }
+
   function renderHome() {
     var host = el("s-home");
     if (!Object.keys(S.quotes).length) {
-      host.innerHTML = '<h1>Today</h1><p class="lede"><span class="spin"></span>' +
+      host.innerHTML = deskHead() + '<p class="lede"><span class="spin"></span>' +
         "Reading the market…</p>";
       return;
     }
     var held = holdings();
     var alarms = alarmsFor(S.quotes);
-    var out = "<h1>Today</h1>";
+    var out = deskHead();
 
     // 1. the loud part — reserved for a breached exit price on something you own
     var alarmHtml = alarms.map(function (a) {
@@ -660,7 +689,11 @@
       var dd = n.high52 ? n.last / n.high52 - 1 : 0;
       var state = S.riskOn && dd > -0.05 ? "Normal" : dd < -0.2 ? "Crisis"
                   : dd < -0.1 ? "Stress" : "Caution";
+      S.regime = state;
       el("regime").innerHTML = "Market <b>" + state + "</b>";
+      // repaint the desk note now the index is known — but never over an
+      // error state, which owns the screen once shown.
+      if (current === "home" && Object.keys(S.quotes).length) renderHome();
     } else {
       el("regime").textContent = "Market state unknown";
     }
@@ -674,7 +707,7 @@
       renderHome();
     })
     .catch(function () {
-      el("s-home").innerHTML = "<h1>Today</h1>" +
+      el("s-home").innerHTML = deskHead() +
         '<div class="notice warn"><span class="k">No market data</span>' +
         "The data service could not be reached, so nothing can be shown. Every figure " +
         "in this app comes from a named source — none are estimated to fill the gap.</div>";
