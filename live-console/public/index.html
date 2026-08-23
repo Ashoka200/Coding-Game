@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>360° Advisor Live</title>
+<title>360° Advisor</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root {
@@ -24,327 +24,535 @@
   body { margin:0; background:var(--bg); color:var(--ink);
          font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px; line-height:1.55; }
   .mono { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
-  header { position:sticky; top:0; z-index:10; background:var(--surface);
-           border-bottom:1px solid var(--line); padding:14px 20px; }
-  .hwrap { max-width:1080px; margin:0 auto; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
-  .brand { font-family:Archivo,sans-serif; font-weight:800; font-size:17px; }
+
+  header { background:var(--surface); border-bottom:1px solid var(--line); padding:16px 24px; }
+  .hwrap { max-width:1000px; margin:0 auto; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  .brand { font-family:Archivo,sans-serif; font-weight:800; font-size:17px; letter-spacing:-0.01em; }
   .brand em { color:var(--accent); font-style:normal; }
-  .livechip { font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
-              letter-spacing:.06em; text-transform:uppercase; padding:3px 10px;
-              border-radius:999px; background:var(--up-soft); color:var(--up); }
-  #asof { margin-left:auto; color:var(--muted); font-size:12.5px; }
-  main { max-width:1080px; margin:0 auto; padding:24px 20px 60px; }
-  h2 { font-family:Archivo,sans-serif; font-weight:700; font-size:16px; margin:26px 0 10px; }
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:16px 18px; }
-  .regime-strip { display:flex; gap:14px; flex-wrap:wrap; }
-  .stat { background:var(--surface2); border-left:3px solid var(--accent);
-          border-radius:6px; padding:10px 14px; min-width:130px; }
-  .stat .k { font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
-             letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
-  .stat .v { font-family:"IBM Plex Mono",monospace; font-size:17px; font-weight:600; }
-  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  .steps { display:flex; align-items:center; gap:10px; margin-left:auto; flex-wrap:wrap; }
+  .step { display:flex; align-items:center; gap:7px; opacity:.42; }
+  .step.on { opacity:1; }
+  .step.done { opacity:.6; }
+  .dot { width:24px; height:24px; border-radius:999px; border:2px solid var(--muted);
+         color:var(--muted); display:flex; align-items:center; justify-content:center;
+         font-family:Archivo,sans-serif; font-weight:700; font-size:12px; }
+  .step.on .dot { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .step.done .dot { background:var(--up); border-color:var(--up); color:#fff; }
+  .step span { font-family:Archivo,sans-serif; font-weight:700; font-size:12.5px; }
+  .bar { width:34px; height:2px; background:var(--line); }
+  .bar.done { background:var(--up); }
+
+  main { max-width:1000px; margin:0 auto; padding:32px 24px 70px; }
+  .screen { display:none; }
+  .screen.active { display:block; }
+  h1 { font-family:Archivo,sans-serif; font-weight:800; font-size:30px; letter-spacing:-0.02em;
+       margin:0 0 8px; text-wrap:balance; }
+  .lede { color:var(--muted); margin:0 0 24px; max-width:62ch; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:24px; }
+  .lbl { font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.07em;
+         text-transform:uppercase; color:var(--muted); display:block; margin-bottom:8px; }
+
+  .amt { display:flex; align-items:baseline; gap:8px; border-bottom:2px solid var(--accent); padding-bottom:8px; }
+  .amt span { font-family:"IBM Plex Mono",monospace; font-size:26px; color:var(--muted); }
+  .amt input { flex:1; font-family:"IBM Plex Mono",monospace; font-size:34px; font-weight:600;
+               font-variant-numeric:tabular-nums; border:none; background:none; color:var(--ink);
+               padding:0; width:100%; }
+  .amt input:focus { outline:none; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .chip { font-family:"IBM Plex Mono",monospace; font-size:13px; border:1px solid var(--line);
+          background:var(--surface); color:var(--muted); border-radius:999px; padding:6px 13px;
+          cursor:pointer; }
+  .chip:hover { border-color:var(--accent); color:var(--accent); }
+
+  .profiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  @media (max-width:700px){ .profiles { grid-template-columns:1fr; } }
+  .prof { border:1px solid var(--line); border-radius:6px; padding:14px; cursor:pointer;
+          background:var(--surface); text-align:left; display:flex; flex-direction:column; gap:4px;
+          min-height:44px; }
+  .prof strong { font-family:Archivo,sans-serif; font-weight:700; font-size:14px; color:var(--ink); }
+  .prof small { color:var(--muted); font-size:12.5px; }
+  .prof[aria-pressed="true"] { border:2px solid var(--accent); background:var(--accent-soft); }
+
+  button.primary { font-family:Archivo,sans-serif; font-weight:700; font-size:16px;
+    background:var(--accent); color:#fff; border:none; border-radius:6px; padding:15px 24px;
+    cursor:pointer; min-height:52px; display:flex; align-items:center; justify-content:center; gap:9px; width:100%; }
+  button.primary:disabled { opacity:.5; cursor:default; }
+  button.ghost { font-family:Archivo,sans-serif; font-weight:600; font-size:14px;
+    background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:6px;
+    padding:12px 20px; cursor:pointer; min-height:46px; }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .assure { display:flex; gap:20px; flex-wrap:wrap; color:var(--muted); font-size:13px; margin-top:18px; }
+  .assure div { display:flex; align-items:center; gap:8px; }
+
+  .allocbar { display:flex; height:34px; border-radius:6px; overflow:hidden; }
+  .allocbar div { display:flex; align-items:center; justify-content:center; color:#fff;
+                  font-family:Archivo,sans-serif; font-weight:700; font-size:12.5px; white-space:nowrap; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
   th { text-align:left; font-family:Archivo,sans-serif; font-size:11px; text-transform:uppercase;
-       letter-spacing:.07em; color:var(--muted); padding:7px 10px; border-bottom:1px solid var(--line);
-       cursor:default; white-space:nowrap; }
-  td { padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+       letter-spacing:.07em; color:var(--muted); padding:11px 9px; border-bottom:1px solid var(--line);
+       white-space:nowrap; }
+  td { padding:11px 9px; border-bottom:1px solid var(--surface2); white-space:nowrap; }
   .tablewrap { overflow-x:auto; }
-  tr.row { cursor:pointer; }
-  tr.row:hover td { background:var(--surface2); }
+  .num { text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
   .pill { display:inline-block; font-family:Archivo,sans-serif; font-weight:700; font-size:10.5px;
-          letter-spacing:.05em; text-transform:uppercase; border-radius:999px; padding:2px 8px; }
-  .pill.up { background:var(--up-soft); color:var(--up); }
-  .pill.down { background:var(--down-soft); color:var(--down); }
-  .pill.warn { background:var(--warn-soft); color:var(--warn); }
-  .pill.mutedp { background:var(--surface2); color:var(--muted); }
-  .pos { color:var(--up); } .neg { color:var(--down); }
-  #detail { margin-top:14px; }
-  .planrow { display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; }
-  .notice { border-radius:6px; padding:10px 14px; font-size:13px; margin-top:10px; }
-  .notice.warnn { background:var(--warn-soft); color:var(--warn); }
+          letter-spacing:.05em; text-transform:uppercase; border-radius:999px; padding:3px 9px; }
+  .pill.core { background:var(--accent-soft); color:var(--accent); }
+  .pill.pick { background:var(--up-soft); color:var(--up); }
+  .notice { border-radius:8px; padding:18px 22px; font-size:14.5px; line-height:1.5; }
+  .notice.warnn { background:var(--warn-soft); color:var(--ink); }
   .notice.err { background:var(--down-soft); color:var(--down); }
-  footer { max-width:1080px; margin:0 auto; padding:16px 20px 40px; color:var(--muted);
+  .notice .k { display:block; font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px;
+               letter-spacing:.07em; text-transform:uppercase; color:var(--warn); margin-bottom:5px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:stretch; }
+  @media (max-width:820px){ .grid2 { grid-template-columns:1fr; } }
+  .stack { display:flex; flex-direction:column; gap:12px; justify-content:center; }
+  .rowline { display:flex; gap:12px; flex-wrap:wrap; }
+  .rowline button { flex:1; }
+  #status { color:var(--muted); font-size:13.5px; margin-top:10px; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--accent-soft);
+          border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite;
+          vertical-align:-2px; margin-right:7px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce){ .spin { animation:none; } }
+  footer { max-width:1000px; margin:0 auto; padding:18px 24px 44px; color:var(--muted);
            font-size:12.5px; border-top:1px solid var(--line); }
-  input[type="number"], input[type="text"] {
-    font-family:"IBM Plex Mono",monospace; font-size:13.5px; padding:7px 10px;
-    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); width:130px;
-  }
-  button.act { font-family:Archivo,sans-serif; font-weight:700; font-size:13px;
-               background:var(--accent); color:#fff; border:none; border-radius:5px;
-               padding:8px 14px; cursor:pointer; }
-  button.act:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-  .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
-  .controls label { font-size:12.5px; color:var(--muted); }
-  #status { color:var(--muted); font-size:13px; }
+  input[type="text"].key { font-family:"IBM Plex Mono",monospace; font-size:13.5px; padding:9px 11px;
+    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); width:210px; }
 </style>
 </head>
 <body>
 <header>
   <div class="hwrap">
-    <div class="brand">360° <em>Advisor</em> Live</div>
-    <span class="livechip" id="livechip">connecting…</span>
-    <span id="asof"></span>
+    <div class="brand">360° <em>Advisor</em></div>
+    <div class="steps" id="steps">
+      <div class="step on" data-s="1"><div class="dot">1</div><span>Amount</span></div>
+      <div class="bar"></div>
+      <div class="step" data-s="2"><div class="dot">2</div><span>Review plan</span></div>
+      <div class="bar"></div>
+      <div class="step" data-s="3"><div class="dot">3</div><span>Send orders</span></div>
+    </div>
   </div>
 </header>
+
 <main>
-  <h2>Market regime — Nifty 50 index</h2>
-  <div class="card"><div class="regime-strip" id="regime">loading…</div></div>
+  <!-- ============ STEP 1 ============ -->
+  <section class="screen active" id="s1">
+    <h1>How much do you want to invest?</h1>
+    <p class="lede">The advisor builds a complete portfolio plan for this amount — what to buy,
+    how much of each, and where every exit price sits. Nothing is bought until you approve it.</p>
 
-  <h2>Watchlist — live analysis</h2>
-  <div class="card">
-    <div class="controls">
-      <label>Add NSE symbol <input type="text" id="addsym" placeholder="e.g. TITAN"></label>
-      <button class="act" id="addbtn">Add</button>
-      <label>Capital ₹ <input type="number" id="capital" value="1000000" step="50000"></label>
-      <label>Risk % <input type="number" id="riskpct" value="0.75" step="0.05"></label>
-      <span id="status"></span>
+    <div class="card" style="display:flex;flex-direction:column;gap:22px">
+      <div>
+        <label class="lbl" for="amount">Investment amount</label>
+        <div class="amt"><span>₹</span><input id="amount" type="text" inputmode="numeric" value="10,00,000"></div>
+        <div class="chips">
+          <button class="chip" data-amt="100000">₹1 L</button>
+          <button class="chip" data-amt="500000">₹5 L</button>
+          <button class="chip" data-amt="1000000">₹10 L</button>
+          <button class="chip" data-amt="2500000">₹25 L</button>
+        </div>
+      </div>
+
+      <div>
+        <span class="lbl">Risk profile</span>
+        <div class="profiles" id="profiles">
+          <button class="prof" data-p="careful" aria-pressed="false">
+            <strong>Careful</strong><small>More index &amp; cash, smaller swings</small></button>
+          <button class="prof" data-p="balanced" aria-pressed="true">
+            <strong>Balanced</strong><small>Core index + selected stocks</small></button>
+          <button class="prof" data-p="ambitious" aria-pressed="false">
+            <strong>Ambitious</strong><small>Larger stock picks, more movement</small></button>
+        </div>
+      </div>
+
+      <button class="primary" id="build">Build my plan
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+      </button>
+      <div id="status"></div>
     </div>
-    <div class="tablewrap">
-      <table>
+
+    <div class="assure">
+      <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>You approve before anything is bought</div>
+      <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Every stock pick has an exit price</div>
+      <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15l3-3 2 2 5-5"/></svg>Orders confirm inside your broker app</div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2 ============ -->
+  <section class="screen" id="s2">
+    <h1 id="planTitle">Your plan</h1>
+    <p class="lede" id="planSub"></p>
+
+    <div class="card" style="margin-bottom:18px">
+      <div class="allocbar" id="allocbar"></div>
+      <div style="display:flex;gap:26px;flex-wrap:wrap;color:var(--muted);font-size:13.5px;margin-top:13px">
+        <span><strong style="color:var(--ink)">Core</strong> — index funds that quietly compound.</span>
+        <span><strong style="color:var(--ink)">Stocks</strong> — today's highest-conviction names.</span>
+        <span><strong style="color:var(--ink)">Cash</strong> — kept ready for corrections.</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:8px 24px 14px;margin-bottom:18px">
+      <div class="tablewrap"><table>
         <thead><tr>
-          <th>Symbol</th><th>Last ₹</th><th>Day</th><th>Stage</th><th>RSI-14</th>
-          <th>vs 52w-high</th><th>12-1 Mom</th><th>Setup</th><th>Tech score</th>
+          <th>What you buy</th><th>Role</th><th class="num">Qty</th><th class="num">Price ₹</th>
+          <th class="num">Value ₹</th><th class="num">If it falls, exit at ₹</th>
         </tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
+        <tbody id="planRows"></tbody>
+      </table></div>
     </div>
-    <div id="detail"></div>
-  </div>
 
-  <div class="notice warnn" style="margin-top:18px">Data via a serverless proxy of a
-  free public feed — good for decision support, not tick-perfect. Cross-check against
-  the official NSE bhavcopy (the full system does this nightly). Decision-support
-  only, not investment advice.</div>
+    <div id="planNotes"></div>
+
+    <div class="grid2" style="margin-top:18px">
+      <div class="notice warnn">
+        <span class="k">Before you approve — the honest number</span>
+        <span id="badMonth"></span>
+      </div>
+      <div class="stack">
+        <button class="primary" id="approve">Approve — prepare orders</button>
+        <button class="ghost" id="back1">Change amount or profile</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3 ============ -->
+  <section class="screen" id="s3">
+    <h1 id="ordTitle">Send orders to your Demat account</h1>
+    <p class="lede">These orders open in your broker app as a ready-made basket. You confirm there
+    with your own PIN — the advisor never holds your login and never moves money on its own.</p>
+
+    <div class="card" style="padding:0;margin-bottom:18px">
+      <div style="padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:13px;flex-wrap:wrap">
+        <div style="width:34px;height:34px;border-radius:6px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M6 6v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <strong style="font-family:Archivo,sans-serif;font-size:15px">Basket for Zerodha Kite</strong>
+          <span style="font-size:13px;color:var(--muted)" id="ordSummary"></span>
+        </div>
+      </div>
+      <div style="padding:6px 22px 16px" class="tablewrap"><table>
+        <thead><tr><th>Order</th><th>Type</th><th class="num">Qty</th><th class="num">Limit ₹</th><th class="num">Value ₹</th></tr></thead>
+        <tbody id="ordRows"></tbody>
+      </table></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <label class="lbl" style="margin:0" for="kitekey">Kite API key</label>
+      <input class="key" id="kitekey" type="text" placeholder="from kite.trade (free)" autocomplete="off">
+      <span style="color:var(--muted);font-size:12.5px">Stored only in this browser. Without it, use the CSV instead.</span>
+    </div>
+
+    <form id="kiteForm" method="POST" action="https://kite.zerodha.com/connect/basket" target="_blank" style="margin-bottom:12px">
+      <input type="hidden" name="api_key" id="fKey">
+      <input type="hidden" name="data" id="fData">
+      <button class="primary" type="submit" id="sendKite">Open basket in Kite
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
+      </button>
+    </form>
+    <div class="rowline">
+      <button class="ghost" id="dlCsv">Download as CSV</button>
+      <button class="ghost" id="back2">Back to the plan</button>
+    </div>
+
+    <div class="card" style="margin-top:18px;display:flex;gap:13px;align-items:flex-start">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:3px;flex-shrink:0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span style="font-size:14px">After you confirm in Kite, keep the plan: the full system (in the repository)
+      logs every position and checks your exit prices each evening, and messages you if one is breached.
+      It will never sell for you.</span>
+    </div>
+
+    <p style="color:var(--muted);font-size:12.5px;margin-top:16px">Limit prices sit slightly above the
+    last traded price so orders fill. Prices are end-of-day from a free public feed — confirm live
+    prices in your broker app before placing.</p>
+  </section>
 </main>
-<footer>Engines here are the same formulas as the repository's Python
-(<span class="mono">technical.py</span>, <span class="mono">levels.py</span>),
-ported to JavaScript and running on live end-of-day data.</footer>
+
+<footer>Decision-support only, not investment advice. Single-user personal tool.
+The advisor proposes; you decide and place every order yourself.</footer>
 
 <script>
 (function () {
   "use strict";
-  var DEFAULT_WATCH = ["RELIANCE","TCS","HDFCBANK","ICICIBANK","INFY","LT",
-                       "BHARTIARTL","ITC","SBIN","TATAMOTORS","SUNPHARMA","TITAN"];
-  var watch = [];
-  try { watch = JSON.parse(localStorage.getItem("watchlist") || "null") || DEFAULT_WATCH.slice(); }
-  catch (e) { watch = DEFAULT_WATCH.slice(); }
-  function saveWatch() { try { localStorage.setItem("watchlist", JSON.stringify(watch)); } catch (e) {} }
 
-  var fmt = function (n, d) {
-    return n == null || isNaN(n) ? "—"
-      : n.toLocaleString("en-IN", { maximumFractionDigits: d == null ? 2 : d,
-                                    minimumFractionDigits: d == null ? 2 : d });
+  var CORE = [
+    { symbol: "NIFTYBEES", desc: "Nifty 50 index fund", share: 0.70 },
+    { symbol: "JUNIORBEES", desc: "Nifty Next 50 index fund", share: 0.30 }
+  ];
+  var UNIVERSE = ["RELIANCE","TCS","HDFCBANK","ICICIBANK","INFY","LT","BHARTIARTL",
+                  "ITC","SBIN","TITAN","SUNPHARMA","AXISBANK","MARUTI","ASIANPAINT",
+                  "BAJFINANCE","HCLTECH","ULTRACEMCO","NESTLEIND"];
+  var PROFILES = {
+    careful:   { mix:[0.70,0.15,0.15], maxPos:0.05, stopMult:2.5, names:4 },
+    balanced:  { mix:[0.60,0.30,0.10], maxPos:0.08, stopMult:2.0, names:5 },
+    ambitious: { mix:[0.50,0.40,0.10], maxPos:0.12, stopMult:2.0, names:6 }
   };
+  var LIMIT_BUFFER = 0.002;
 
-  /* ---- indicator math (ports of indicators.py / technical.py) ---- */
-  function sma(a, n, i) {
-    if (i == null) i = a.length - 1;
-    if (i + 1 < n) return null;
-    var s = 0; for (var j = i - n + 1; j <= i; j++) s += a[j];
-    return s / n;
-  }
-  function ema(a, n) {
-    var k = 2 / (n + 1), e = a[0], out = [e];
-    for (var i = 1; i < a.length; i++) { e = a[i] * k + e * (1 - k); out.push(e); }
-    return out;
-  }
-  function rsi(close, n) {
-    n = n || 14;
-    var up = 0, down = 0, i;
-    for (i = 1; i <= n && i < close.length; i++) {
-      var d = close[i] - close[i - 1];
-      if (d > 0) up += d; else down -= d;
-    }
-    up /= n; down /= n;
-    for (i = n + 1; i < close.length; i++) {
-      var dd = close[i] - close[i - 1];
-      up = (up * (n - 1) + Math.max(dd, 0)) / n;
-      down = (down * (n - 1) + Math.max(-dd, 0)) / n;
-    }
-    if (down === 0) return 100;
-    return 100 - 100 / (1 + up / down);
-  }
-  function atr(high, low, close, n) {
-    n = n || 14;
-    var trs = [];
-    for (var i = 1; i < close.length; i++) {
-      trs.push(Math.max(high[i] - low[i], Math.abs(high[i] - close[i - 1]),
-                        Math.abs(low[i] - close[i - 1])));
-    }
-    var a = trs[0];
-    for (var j = 1; j < trs.length; j++) a = (a * (n - 1) + trs[j]) / n;
-    return a;
-  }
+  var state = { amount: 1000000, profile: "balanced", plan: null };
 
-  function analyze(sym, d) {
-    var c = d.close.filter(function (x) { return x != null; });
-    var h = d.high.filter(function (x) { return x != null; });
-    var l = d.low.filter(function (x) { return x != null; });
-    if (c.length < 210) return null;
-    var last = d.last || c[c.length - 1];
-    var prev = c[c.length - 2];
-    var s200 = sma(c, 200), s200prev = sma(c, 200, c.length - 22);
-    var e50 = ema(c, 50)[c.length - 1], e20 = ema(c, 20)[c.length - 1];
-    var rising = s200prev != null && s200 > s200prev;
-    var stage = (last > s200 && rising && last > e50) ? 2
-              : (last < s200 && !rising) ? 4 : (rising ? 1 : 3);
-    var hi52 = Math.max.apply(null, c.slice(-252));
-    var dist52 = last / hi52 - 1;
-    var mom = c.length >= 253 ? c[c.length - 22] / c[c.length - 253] - 1 : null;
-    var r = rsi(c, 14);
-    var a14 = atr(h, l, c, 14);
-    var hi60 = Math.max.apply(null, h.slice(-61, -1));
-    var setup = "";
-    if (stage === 2) {
-      if (last > hi60) setup = "60d-high breakout";
-      else if (Math.min(Math.abs(last / e20 - 1), Math.abs(last / e50 - 1)) <= 0.02
-               && r >= 35 && r <= 60) setup = "pullback in trend";
-      else if (dist52 > -0.005) setup = "new 52w high";
-    }
-    var score = ({2:40,1:20,3:10,4:0})[stage];
-    if (mom != null) score += Math.max(0, Math.min(15, mom * 50));
-    score += Math.max(0, Math.min(15, (dist52 + 0.25) * 60));
-    if (r > 50 && r < 75) score += 10;
-    return { sym: sym, last: last, dayPct: prev ? last / prev - 1 : null,
-             stage: stage, rsi: r, dist52: dist52, mom: mom, setup: setup,
-             score: Math.round(Math.min(score, 100)), atr: a14,
-             swingLow: Math.min.apply(null, l.slice(-20)) };
+  function inr(n, d) {
+    return "₹" + Number(n).toLocaleString("en-IN",
+      { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: d == null ? 0 : d });
   }
-
-  function fetchHist(sym, range) {
-    return fetch("/api/history?symbol=" + encodeURIComponent(sym) +
-                 "&range=" + (range || "2y"))
-      .then(function (r) { if (!r.ok) throw new Error(sym + ": " + r.status);
-                           return r.json(); });
+  function num(n, d) {
+    return Number(n).toLocaleString("en-IN",
+      { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: d == null ? 0 : d });
   }
+  function parseAmt(s) { return parseInt(String(s).replace(/[^0-9]/g, ""), 10) || 0; }
 
-  /* ---- regime panel ---- */
-  function renderRegime(d) {
-    var c = d.close.filter(function (x) { return x != null; });
-    var last = d.last || c[c.length - 1];
-    var s200 = sma(c, 200);
-    var above = last > s200;
-    var hi = Math.max.apply(null, c.slice(-252));
-    var dd = last / hi - 1;
-    var state = above && dd > -0.05 ? ["EXPANSION", "up"]
-              : dd < -0.20 ? ["CRISIS", "down"]
-              : dd < -0.10 ? ["STRESS", "down"]
-              : ["CAUTION", "warn"];
-    document.getElementById("regime").innerHTML =
-      '<div class="stat"><div class="k">State</div><div class="v"><span class="pill ' +
-      state[1] + '">' + state[0] + '</span></div></div>' +
-      '<div class="stat"><div class="k">Nifty 50</div><div class="v">' + fmt(last) + '</div></div>' +
-      '<div class="stat"><div class="k">vs 200-SMA</div><div class="v ' + (above ? "pos" : "neg") + '">' +
-      (above ? "above" : "below") + '</div></div>' +
-      '<div class="stat"><div class="k">Drawdown from 1y high</div><div class="v ' +
-      (dd < -0.05 ? "neg" : "") + '">' + fmt(dd * 100, 1) + '%</div></div>' +
-      '<div class="stat"><div class="k">Playbook</div><div class="v" style="font-size:13px">' +
-      (state[0] === "EXPANSION" ? "full program" :
-       state[0] === "CAUTION" ? "size −25%, build lists" :
-       state[0] === "STRESS" ? "no new trading longs" : "staged buying by plan") +
-      '</div></div>';
-  }
-
-  /* ---- watchlist table ---- */
-  var results = {};
-  function renderRows() {
-    var tbody = document.getElementById("rows");
-    var rows = watch.map(function (s) { return results[s]; })
-                    .filter(Boolean)
-                    .sort(function (a, b) { return b.score - a.score; });
-    tbody.innerHTML = rows.map(function (r) {
-      var stagePill = r.stage === 2 ? "up" : r.stage === 4 ? "down" : "warn";
-      return '<tr class="row mono" data-sym="' + r.sym + '">' +
-        '<td style="font-family:Archivo,sans-serif;font-weight:700">' + r.sym + '</td>' +
-        '<td>' + fmt(r.last) + '</td>' +
-        '<td class="' + (r.dayPct >= 0 ? "pos" : "neg") + '">' + fmt(r.dayPct * 100, 2) + '%</td>' +
-        '<td><span class="pill ' + stagePill + '">Stage ' + r.stage + '</span></td>' +
-        '<td>' + fmt(r.rsi, 0) + '</td>' +
-        '<td class="' + (r.dist52 > -0.05 ? "pos" : "") + '">' + fmt(r.dist52 * 100, 1) + '%</td>' +
-        '<td>' + (r.mom == null ? "—" : fmt(r.mom * 100, 1) + "%") + '</td>' +
-        '<td>' + (r.setup ? '<span class="pill accent" style="background:var(--accent-soft);color:var(--accent)">' + r.setup + '</span>' : "—") + '</td>' +
-        '<td style="font-weight:600">' + r.score + '</td></tr>';
-    }).join("");
-    Array.prototype.forEach.call(tbody.querySelectorAll("tr.row"), function (tr) {
-      tr.addEventListener("click", function () { renderDetail(tr.dataset.sym); });
+  /* ---- step navigation ---- */
+  function goto(n) {
+    ["s1","s2","s3"].forEach(function (id, i) {
+      document.getElementById(id).classList.toggle("active", i + 1 === n);
     });
-  }
-
-  function renderDetail(sym) {
-    var r = results[sym];
-    if (!r) return;
-    var cap = +document.getElementById("capital").value || 1000000;
-    var riskPct = (+document.getElementById("riskpct").value || 0.75) / 100;
-    var entry = r.last;
-    var stop = Math.max(r.swingLow, entry - 2 * r.atr);
-    if (stop >= entry) stop = entry - 2 * r.atr;
-    var rps = entry - stop;
-    var qty = Math.floor(Math.min((cap * riskPct) / rps, (cap * 0.08) / entry));
-    var html = '<h2 style="margin-top:18px">' + sym + " — live trade plan" +
-      (r.stage !== 2 ? ' <span class="pill down">not in Stage 2 — plan shown for reference only</span>' : "") +
-      "</h2><div class='planrow'>" +
-      '<div class="stat"><div class="k">Entry ref</div><div class="v">₹' + fmt(entry) + '</div></div>' +
-      '<div class="stat" style="border-left-color:var(--down)"><div class="k">Stop</div><div class="v">₹' + fmt(stop) + '</div></div>' +
-      '<div class="stat" style="border-left-color:var(--up)"><div class="k">T1 · 1.5R</div><div class="v">₹' + fmt(entry + 1.5 * rps) + '</div></div>' +
-      '<div class="stat" style="border-left-color:var(--up)"><div class="k">T2 · 2.5R</div><div class="v">₹' + fmt(entry + 2.5 * rps) + '</div></div>' +
-      '<div class="stat"><div class="k">Qty (risk ' + (riskPct * 100).toFixed(2) + '%)</div><div class="v">' + qty + '</div></div>' +
-      '<div class="stat"><div class="k">ATR-14</div><div class="v">₹' + fmt(r.atr) + '</div></div>' +
-      "</div><p style='color:var(--muted);font-size:13px'>Stop is the tighter of the 20-day swing low and 2×ATR. Scale out half at T1, stop to breakeven, trail the rest. Remove: <button class='act' style='background:var(--down)' id='rmbtn'>Remove " + sym + "</button></p>";
-    document.getElementById("detail").innerHTML = html;
-    document.getElementById("rmbtn").addEventListener("click", function () {
-      watch = watch.filter(function (s) { return s !== sym; });
-      delete results[sym]; saveWatch(); renderRows();
-      document.getElementById("detail").innerHTML = "";
+    var steps = document.querySelectorAll("#steps .step");
+    var bars = document.querySelectorAll("#steps .bar");
+    steps.forEach(function (el, i) {
+      el.classList.toggle("on", i + 1 === n);
+      el.classList.toggle("done", i + 1 < n);
+      el.querySelector(".dot").innerHTML = (i + 1 < n)
+        ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+        : String(i + 1);
     });
+    bars.forEach(function (b, i) { b.classList.toggle("done", i + 1 < n); });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function loadAll() {
+  /* ---- step 1 inputs ---- */
+  var amtInput = document.getElementById("amount");
+  amtInput.addEventListener("input", function () {
+    var v = parseAmt(amtInput.value);
+    state.amount = v;
+    amtInput.value = v ? v.toLocaleString("en-IN") : "";
+  });
+  document.querySelectorAll(".chip").forEach(function (c) {
+    c.addEventListener("click", function () {
+      state.amount = +c.dataset.amt;
+      amtInput.value = state.amount.toLocaleString("en-IN");
+    });
+  });
+  document.querySelectorAll(".prof").forEach(function (p) {
+    p.addEventListener("click", function () {
+      document.querySelectorAll(".prof").forEach(function (x) { x.setAttribute("aria-pressed","false"); });
+      p.setAttribute("aria-pressed","true");
+      state.profile = p.dataset.p;
+    });
+  });
+
+  /* ---- the planner (port of planner.py) ---- */
+  function fetchQuotes(symbols) {
+    return fetch("/api/quotes?symbols=" + encodeURIComponent(symbols.join(",")))
+      .then(function (r) { if (!r.ok) throw new Error("data service " + r.status); return r.json(); })
+      .then(function (d) {
+        var map = {};
+        (d.quotes || []).forEach(function (q) { if (!q.error) map[q.symbol] = q; });
+        return map;
+      });
+  }
+
+  function stage(q) {
+    if (q.sma200 == null) return 1;
+    if (q.last > q.sma200 && q.sma200Rising && q.sma50 != null && q.last > q.sma50) return 2;
+    if (q.last < q.sma200 && !q.sma200Rising) return 4;
+    return q.sma200Rising ? 1 : 3;
+  }
+
+  function buildPlan() {
+    var cfg = PROFILES[state.profile];
+    var amount = state.amount;
     var status = document.getElementById("status");
-    var done = 0, fail = 0;
-    status.textContent = "loading 0/" + watch.length;
-    watch.forEach(function (sym) {
-      fetchHist(sym).then(function (d) {
-        var a = analyze(sym, d);
-        if (a) results[sym] = a; else fail++;
-      }).catch(function () { fail++; })
-        .finally(function () {
-          done++;
-          status.textContent = "loaded " + done + "/" + watch.length +
-                               (fail ? " (" + fail + " failed)" : "");
-          renderRows();
-        });
+    if (amount < 25000) {
+      status.innerHTML = '<span style="color:var(--down)">Minimum ₹25,000 — below that, ' +
+        'brokerage and lot sizes eat the diversification.</span>';
+      return;
+    }
+    status.innerHTML = '<span class="spin"></span>Reading today\'s market…';
+    document.getElementById("build").disabled = true;
+
+    var symbols = CORE.map(function (c) { return c.symbol; }).concat(UNIVERSE).concat(["^NSEI"]);
+    fetchQuotes(symbols).then(function (q) {
+      var nifty = q["^NSEI"];
+      var riskOn = nifty && nifty.sma200 != null ? nifty.last > nifty.sma200 : true;
+      var mix = cfg.mix.slice();
+      var notes = [];
+      if (!riskOn) {
+        notes.push("The market is below its long-term average, so the stock sleeve stays in cash " +
+                   "and only the index core is bought. This is the playbook, not a forecast.");
+        mix = [Math.min(mix[0], 0.60), 0, 1 - Math.min(mix[0], 0.60)];
+      }
+
+      var lines = [];
+      var coreAmt = amount * mix[0];
+      CORE.forEach(function (c) {
+        var quote = q[c.symbol];
+        if (!quote) { notes.push("No live price for " + c.symbol + " — it was left out."); return; }
+        var qty = Math.floor(coreAmt * c.share / quote.last);
+        if (qty > 0) lines.push({ symbol:c.symbol, role:"core", desc:c.desc, qty:qty,
+                                  price:quote.last, value:qty*quote.last, stop:null, risk:0 });
+      });
+
+      if (mix[1] > 0) {
+        var eligible = UNIVERSE.map(function (s) { return q[s]; })
+          .filter(Boolean)
+          .filter(function (x) { return stage(x) === 2; })
+          .map(function (x) {
+            var score = (x.mom6m || 0) * 100 + (x.high52 ? (x.last / x.high52) * 20 : 0);
+            return { q: x, score: score };
+          })
+          .sort(function (a, b) { return b.score - a.score; })
+          .slice(0, cfg.names);
+
+        if (eligible.length) {
+          var perName = Math.min(amount * mix[1] / eligible.length, amount * cfg.maxPos);
+          eligible.forEach(function (e) {
+            var x = e.q;
+            var stop = Math.max(x.swingLow20, x.last - cfg.stopMult * x.atr14);
+            if (stop >= x.last) stop = x.last - cfg.stopMult * x.atr14;
+            var qty = Math.floor(perName / x.last);
+            if (qty <= 0) return;
+            var price = Math.round(x.last * 100) / 100, st = Math.round(stop * 100) / 100;
+            lines.push({ symbol:x.symbol, role:"satellite", desc:"in an uptrend, leading the market",
+                         qty:qty, price:price, value:qty*price, stop:st, risk:qty*(price-st) });
+          });
+          if (eligible.length < cfg.names) {
+            notes.push("Only " + eligible.length + " stock(s) passed the trend filter, so each gets " +
+                       "a larger share (capped by the profile limit) and the rest stays in cash.");
+          }
+        } else {
+          notes.push("No stock passed the trend filter today, so that sleeve stays in cash. " +
+                     "A forced trade is worse than no trade.");
+        }
+      }
+
+      var invested = lines.reduce(function (s, l) { return s + l.value; }, 0);
+      var coreVal = lines.filter(function (l) { return l.role === "core"; })
+                         .reduce(function (s, l) { return s + l.value; }, 0);
+      var satBad = lines.filter(function (l) { return l.role === "satellite"; })
+                        .reduce(function (s, l) { return s + Math.max(l.risk, l.value * 0.09); }, 0);
+      state.plan = {
+        amount: amount, profile: state.profile, lines: lines, notes: notes,
+        invested: invested, cash: amount - invested,
+        totalRisk: lines.reduce(function (s, l) { return s + l.risk; }, 0),
+        badMonth: coreVal * 0.07 + satBad, mix: mix, riskOn: riskOn
+      };
+      renderPlan();
+      status.innerHTML = "";
+      document.getElementById("build").disabled = false;
+      goto(2);
+    }).catch(function (e) {
+      status.innerHTML = '<span style="color:var(--down)">Could not reach the market data service (' +
+        e.message + '). Try again in a moment.</span>';
+      document.getElementById("build").disabled = false;
     });
   }
 
-  document.getElementById("addbtn").addEventListener("click", function () {
-    var s = document.getElementById("addsym").value.trim().toUpperCase();
-    if (!s || watch.indexOf(s) !== -1) return;
-    watch.push(s); saveWatch();
-    document.getElementById("addsym").value = "";
-    fetchHist(s).then(function (d) {
-      var a = analyze(s, d);
-      if (a) { results[s] = a; renderRows(); }
-      else document.getElementById("status").textContent = s + ": not enough history";
-    }).catch(function () {
-      document.getElementById("status").textContent = s + ": no data (check symbol)";
-      watch = watch.filter(function (x) { return x !== s; }); saveWatch();
-    });
+  document.getElementById("build").addEventListener("click", buildPlan);
+
+  /* ---- step 2 render ---- */
+  function renderPlan() {
+    var p = state.plan;
+    document.getElementById("planTitle").textContent = "Your plan for " + inr(p.amount);
+    document.getElementById("planSub").textContent =
+      p.profile.charAt(0).toUpperCase() + p.profile.slice(1) +
+      " profile · " + (p.riskOn ? "market conditions normal" : "market below its long-term average");
+
+    var cashPct = Math.max(0, 1 - p.mix[0] - p.mix[1]);
+    document.getElementById("allocbar").innerHTML =
+      '<div style="width:' + (p.mix[0]*100) + '%;background:var(--accent)">CORE ' + Math.round(p.mix[0]*100) + '%</div>' +
+      (p.mix[1] > 0 ? '<div style="width:' + (p.mix[1]*100) + '%;background:var(--up)">STOCKS ' + Math.round(p.mix[1]*100) + '%</div>' : '') +
+      '<div style="width:' + (cashPct*100) + '%;background:var(--surface2);color:var(--muted)">CASH ' + Math.round(cashPct*100) + '%</div>';
+
+    document.getElementById("planRows").innerHTML = p.lines.map(function (l) {
+      return "<tr><td><strong style='font-family:Archivo,sans-serif'>" + l.symbol + "</strong>" +
+        "<div style='color:var(--muted);font-size:12.5px'>" + l.desc + "</div></td>" +
+        "<td><span class='pill " + (l.role === "core" ? "core'>Core" : "pick'>Stock pick") + "</span></td>" +
+        "<td class='num'>" + num(l.qty) + "</td>" +
+        "<td class='num'>" + num(l.price, 2) + "</td>" +
+        "<td class='num'>" + num(l.value) + "</td>" +
+        "<td class='num' style='color:" + (l.stop ? "var(--down)" : "var(--muted)") + "'>" +
+        (l.stop ? num(l.stop, 2) : "hold") + "</td></tr>";
+    }).join("");
+
+    document.getElementById("planNotes").innerHTML = p.notes.map(function (n) {
+      return '<div class="notice warnn" style="margin-bottom:10px">' + n + "</div>";
+    }).join("");
+
+    document.getElementById("badMonth").innerHTML =
+      "In a normal bad month this plan could be down about <strong class='mono'>" +
+      inr(p.badMonth) + "</strong> (" + (100 * p.badMonth / p.amount).toFixed(1) +
+      "%). If that number would make you sell everything, choose the Careful profile instead." +
+      " Invested " + inr(p.invested) + " · cash left " + inr(p.cash) + ".";
+  }
+
+  document.getElementById("back1").addEventListener("click", function () { goto(1); });
+  document.getElementById("back2").addEventListener("click", function () { goto(2); });
+  document.getElementById("approve").addEventListener("click", function () {
+    renderOrders(); goto(3);
   });
 
-  /* ---- boot ---- */
-  fetchHist("^NSEI", "2y").then(function (d) {
-    renderRegime(d);
-    document.getElementById("livechip").textContent = "live";
-    var ts = d.timestamps && d.timestamps.length
-      ? new Date(d.timestamps[d.timestamps.length - 1] * 1000) : new Date();
-    document.getElementById("asof").textContent =
-      "data as of " + ts.toLocaleDateString("en-IN",
-        { day: "numeric", month: "short", year: "numeric" });
-  }).catch(function (e) {
-    document.getElementById("livechip").textContent = "offline";
-    document.getElementById("regime").innerHTML =
-      '<div class="notice err">Could not reach the data function: ' + e.message + '</div>';
+  /* ---- step 3: orders ---- */
+  function orders() {
+    return state.plan.lines.filter(function (l) { return l.qty > 0; }).map(function (l) {
+      return { variety:"regular", tradingsymbol:l.symbol, exchange:"NSE",
+               transaction_type:"BUY", order_type:"LIMIT", quantity:l.qty,
+               product:"CNC", readonly:false,
+               price: Math.round(l.price * (1 + LIMIT_BUFFER) * 10) / 10 };
+    });
+  }
+
+  function renderOrders() {
+    var os = orders();
+    var total = os.reduce(function (s, o) { return s + o.quantity * o.price; }, 0);
+    document.getElementById("ordTitle").textContent =
+      "Send " + os.length + " orders to your Demat account";
+    document.getElementById("ordSummary").textContent =
+      os.length + " buy orders · about " + inr(total) + " · cash left " + inr(state.plan.cash);
+    document.getElementById("ordRows").innerHTML = os.map(function (o) {
+      return "<tr><td><strong style='font-family:Archivo,sans-serif;color:var(--up)'>BUY</strong> " +
+        "<strong style='font-family:Archivo,sans-serif'>" + o.tradingsymbol + "</strong></td>" +
+        "<td style='color:var(--muted)'>Limit · CNC</td>" +
+        "<td class='num'>" + num(o.quantity) + "</td>" +
+        "<td class='num'>" + num(o.price, 2) + "</td>" +
+        "<td class='num'>" + num(o.quantity * o.price) + "</td></tr>";
+    }).join("");
+    document.getElementById("fData").value = JSON.stringify(os);
+    document.getElementById("fKey").value = document.getElementById("kitekey").value.trim();
+  }
+
+  var keyInput = document.getElementById("kitekey");
+  try { keyInput.value = localStorage.getItem("kiteApiKey") || ""; } catch (e) {}
+  keyInput.addEventListener("input", function () {
+    try { localStorage.setItem("kiteApiKey", keyInput.value.trim()); } catch (e) {}
+    document.getElementById("fKey").value = keyInput.value.trim();
   });
-  loadAll();
+
+  document.getElementById("kiteForm").addEventListener("submit", function (ev) {
+    var k = keyInput.value.trim();
+    document.getElementById("fKey").value = k;
+    document.getElementById("fData").value = JSON.stringify(orders());
+    if (!k) {
+      ev.preventDefault();
+      alert("Add your Kite API key first (free at kite.trade), or use Download as CSV " +
+            "and import the orders into any broker's order pad.");
+    }
+  });
+
+  document.getElementById("dlCsv").addEventListener("click", function () {
+    var rows = [["Exchange","Symbol","Transaction","Quantity","OrderType","Price","Product"]];
+    orders().forEach(function (o) {
+      rows.push([o.exchange, o.tradingsymbol, o.transaction_type, o.quantity,
+                 o.order_type, o.price, o.product]);
+    });
+    var csv = rows.map(function (r) { return r.join(","); }).join("\n");
+    var blob = new Blob([csv], { type: "text/csv" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "advisor-orders.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
 })();
 </script>
 </body>

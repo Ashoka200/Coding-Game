@@ -48,6 +48,14 @@ def main() -> None:
     bt = sub.add_parser("backtest")
     bt.add_argument("--symbols")
 
+    pl = sub.add_parser("plan")
+    pl.add_argument("action", choices=["new", "show", "approve", "orders", "placed"])
+    pl.add_argument("--amount", type=float)
+    pl.add_argument("--profile", default="balanced",
+                    choices=["careful", "balanced", "ambitious"])
+    pl.add_argument("--id", type=int)
+    pl.add_argument("--csv", action="store_true", help="orders: write CSV instead of Kite basket")
+
     sub.add_parser("factors")
     sub.add_parser("risk")
     wf = sub.add_parser("walkforward")
@@ -116,6 +124,39 @@ def main() -> None:
         symbols = args.symbols.split(",") if args.symbols else None
         result = backtest_breakout(load_prices_from_db(symbols))
         print(result.stats or "no trades generated")
+    elif args.cmd == "plan":
+        from . import planner
+        if args.action == "new":
+            if not args.amount:
+                p.error("plan new needs --amount")
+            plan = planner.build_plan(args.amount, args.profile)
+            print(planner.render_plan(plan))
+            print(f"\nTo approve: python -m advisor.cli plan approve --id {plan.plan_id}")
+        elif args.action == "show":
+            status, plan = planner.get_plan(args.id)
+            print(f"status: {status}\n")
+            print(planner.render_plan(plan))
+        elif args.action == "approve":
+            plan = planner.approve_plan(args.id)
+            print(f"Plan {args.id} approved. Build the orders with:\n"
+                  f"  python -m advisor.cli plan orders --id {args.id}")
+        elif args.action == "orders":
+            from . import broker
+            if args.csv:
+                path = broker.to_csv(args.id)
+                print(f"wrote {path} — import it into your broker's order pad")
+            else:
+                path = broker.basket_form_html(args.id)
+                print(f"wrote {path} — open it in a browser to review and confirm "
+                      "the basket inside Kite")
+            summary = broker.basket_summary(args.id)
+            print(f"{summary['n_orders']} orders, about ₹{summary['total_value']:,.0f}")
+            print(f"After they execute: python -m advisor.cli plan placed --id {args.id}")
+        elif args.action == "placed":
+            from . import broker
+            broker.mark_placed(args.id)
+            print(f"plan {args.id} recorded as placed; holdings opened with stops. "
+                  "Nightly digest now watches them.")
     elif args.cmd == "factors":
         from .factors import rank_factors
         table = rank_factors()
