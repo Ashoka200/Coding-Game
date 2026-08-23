@@ -29,6 +29,14 @@ phases), `EXTENDED-ROADMAP.md` (ML/intraday/multi-user phases), and `knowledge/`
   covariance, VaR/CVaR, crisis stress replay, diversification diagnostics
   (`risk.py`), walk-forward strategy validation (`walkforward.py`), Telegram
   push alerts (`notify.py`). One-command bootstrap: `bash run_live.sh --backfill`.
+- **MCP server** (`mcp-server/`): exposes the engines to any LLM as verified-data
+  tools. Every response carries provenance, explicit `unknown` fields with reasons,
+  and the never-guess rules in-band — so a model cannot quietly substitute a
+  remembered price. Tools: quote, regime, fundamentals, news, verdict, portfolio,
+  plan, universe. No tool places an order.
+- **Verdict engine** (`verdict.py`): nine-stage decision sequence shared with the
+  web console — evidence, vetoes, position, business, valuation, news, trend,
+  regime, horizon, synthesis.
 - All engine logic covered by offline tests (`python -m pytest tests/ -q`, 27 tests).
 - Live NSE/Yahoo fetches require normal internet access (blocked in some sandboxes);
   run the commands below on your own machine.

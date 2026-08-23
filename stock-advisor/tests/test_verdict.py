@@ -1,0 +1,112 @@
+"""Tests for the nine-stage decision engine and the news classifier."""
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from advisor.verdict import decide  # noqa: E402
+
+
+FEAT = {"close": 100.0, "atr14": 2.0, "swing_low_20d": 94.0, "rsi14": 60.0,
+        "dist_52w_high": -0.03, "sma200": 90.0, "ema50": 95.0}
+GOOD_FUND = {"pe": 20, "roe": 0.22, "roce": 0.24, "debt_to_equity": 0.3, "interest_cover": 12}
+JUNK_FUND = {"pe": 90, "roe": 0.02, "roce": 0.03, "debt_to_equity": 1.2, "interest_cover": 2}
+
+
+def test_quality_uptrend_is_a_long_term_buy():
+    v = decide("X", FEAT, GOOD_FUND, 78, news_pressure={"tone": "mixed", "net": 0,
+                                                        "material_count": 0},
+               stage=2, regime_risk_on=True)
+    assert v.action == "BUY"
+    assert v.horizon.startswith("Long term")
+    assert v.conviction > 60
+    assert v.levels["stop"] < v.levels["reference_price"] < v.levels["target1"]
+
+
+def test_breached_exit_price_forces_a_sell_even_on_good_news():
+    v = decide("X", dict(FEAT, close=80.0), GOOD_FUND, 80,
+               news_pressure={"tone": "positive", "net": 3, "material_count": 2},
+               stage=2, regime_risk_on=True, holding={"qty": 10, "stop": 85.0})
+    assert v.action == "SELL"
+    assert v.conviction >= 85
+    assert any("exit price" in s.finding for s in v.chain)
+
+
+def test_grave_news_vetoes_everything():
+    grave = [{"weight": -3, "event_label": "Fraud or investigation",
+              "title": "Regulator opens probe into X", "age_days": 1}]
+    held = decide("X", FEAT, GOOD_FUND, 80, news_items=grave,
+                  news_pressure={"tone": "negative", "net": -3, "material_count": 1},
+                  stage=2, regime_risk_on=True, holding={"qty": 5})
+    assert held.action == "SELL"
+    fresh = decide("X", FEAT, GOOD_FUND, 80, news_items=grave,
+                   news_pressure={"tone": "negative", "net": -3, "material_count": 1},
+                   stage=2, regime_risk_on=True)
+    assert fresh.action == "AVOID"
+    assert v_stage(fresh, "Veto")
+
+
+def test_ruinous_leverage_vetoes():
+    v = decide("X", FEAT, {"pe": 8, "debt_to_equity": 4.0, "interest_cover": 1.1}, 42,
+               stage=2, regime_risk_on=True)
+    assert v.action == "AVOID"
+    assert any("balance sheet" in s.finding for s in v.chain)
+
+
+def test_missing_evidence_caps_confidence_and_forbids_long_term():
+    v = decide("X", FEAT, None, None, stage=2, regime_risk_on=True)
+    assert v.conviction <= 60                    # no fundamentals, no news
+    assert v.horizon.startswith("Short term")    # never a long-term call without financials
+    assert "fundamentals" in v.unknowns and "news" in v.unknowns
+
+
+def test_downtrend_junk_flags_the_short_case_but_not_a_naked_short():
+    v = decide("X", dict(FEAT, close=70.0, rsi14=30.0), JUNK_FUND, 32,
+               news_pressure={"tone": "negative", "net": -2, "material_count": 1},
+               stage=4, regime_risk_on=False)
+    assert v.action == "AVOID"
+    assert v.short_case is True
+    assert any("never a naked short" in s.finding for s in v.chain)
+
+
+def test_concentration_forces_a_trim():
+    v = decide("X", FEAT, GOOD_FUND, 80, stage=2, regime_risk_on=True,
+               holding={"qty": 100, "weight": 0.22})
+    assert v.action == "TRIM"
+
+
+def test_chain_is_ordered_and_complete():
+    v = decide("X", FEAT, GOOD_FUND, 75,
+               news_pressure={"tone": "mixed", "net": 0, "material_count": 0},
+               stage=2, regime_risk_on=True)
+    stages = [s.stage for s in v.chain]
+    assert stages[0] == "Evidence"
+    for expected in ("Business", "Valuation", "News", "Trend", "Horizon"):
+        assert expected in stages
+    assert stages.index("Business") < stages.index("Valuation") < stages.index("Horizon")
+
+
+def v_stage(verdict, name):
+    return any(s.stage == name for s in verdict.chain)
+
+
+# ---------- news classifier ----------
+
+def test_news_classification_and_pressure():
+    from advisor.news import NewsItem, classify, pressure
+
+    assert classify("SEBI opens probe into accounting fraud at X")[0] == "fraud"
+    assert classify("X bags ₹5,000 crore order from NHAI")[0] == "order"
+    assert classify("Brokerage upgrades X, raises target price")[0] == "upgrade"
+    assert classify("X profit falls 30% on weak demand")[0] == "profitfall"
+    assert classify("X to consider dividend on Friday")[0] == "payout"
+    assert classify("X opens new showroom in Pune")[0] == "general"
+
+    fresh_bad = NewsItem("t", "l", "s", None, 1.0, "fraud", "Fraud", -3)
+    old_bad = NewsItem("t", "l", "s", None, 13.0, "fraud", "Fraud", -3)
+    assert pressure([fresh_bad])["net"] < pressure([old_bad])["net"]   # recency matters
+    assert pressure([fresh_bad])["tone"] == "negative"
+    assert pressure([])["tone"] == "mixed"
+    assert pressure([fresh_bad])["material_count"] == 1

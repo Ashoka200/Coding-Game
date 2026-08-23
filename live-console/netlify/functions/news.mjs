@@ -41,7 +41,7 @@ const EVENTS = [
     label: "Analyst upgrade" },
   { k: "profitrise",   w: 2,  re: /\b(profit (?:rises|jumps|surges|soars|up \d)|beats estimates|strong (?:results|quarter)|record (?:profit|revenue))/i,
     label: "Strong results" },
-  { k: "order",        w: 2,  re: /\b(order win|bags? (?:order|contract)|wins? (?:order|contract|deal)|new order|order book)/i,
+  { k: "order",        w: 2,  re: /\b(order win|order book|(?:bags?|wins?|secures?|receives?)\b[^.]{0,45}?\b(?:order|contract|deal|mandate|tender))/i,
     label: "Order or contract win" },
   { k: "expansion",    w: 1,  re: /\b(capex|new plant|capacity expansion|acquisition|acquires|merger|joint venture|stake buy)/i,
     label: "Expansion or M&A" },
