@@ -194,7 +194,9 @@
   function fundScore(f) {
     var score = 0, gaps = [], flags = [];
     // Quality 40
-    if (f.roe != null) score += clamp(f.roe / 0.20, 0, 1) * 20; else { score += 10; gaps.push("ROE"); }
+    var profitability = f.roe != null ? f.roe : (f.roce != null ? f.roce : null);
+    if (profitability != null) score += clamp(profitability / 0.20, 0, 1) * 20;
+    else { score += 10; gaps.push("ROE"); }
     if (f.opMargin != null) score += clamp(f.opMargin / 0.20, 0, 1) * 10; else { score += 5; gaps.push("margins"); }
     if (f.debtToEquity != null) {
       var de = f.debtToEquity > 5 ? f.debtToEquity / 100 : f.debtToEquity;
@@ -215,6 +217,7 @@
     else { score += 5; gaps.push("EV/EBITDA"); }
     // Safety 10
     if (f.currentRatio != null) score += clamp((f.currentRatio - 0.8) / 1.2, 0, 1) * 10;
+    else if (f.interestCover != null) score += clamp((f.interestCover - 1) / 5, 0, 1) * 10;
     else { score += 5; gaps.push("liquidity"); }
     return { score: Math.round(score), gaps: gaps, flags: flags };
   }
@@ -235,8 +238,9 @@
         S.fundamentals = {};
         (d.fundamentals || []).forEach(function (f) { if (!f.error) S.fundamentals[f.symbol] = f; });
         var got = Object.keys(S.fundamentals).length;
-        st.textContent = got ? got + " companies loaded." :
-          "The fundamentals source is unavailable right now — no numbers rather than invented ones.";
+        st.textContent = got
+          ? got + " companies loaded from " + ((d.sources || ["source"]).join(", ")) + "."
+          : (d.note || "No fundamental source answered — no numbers rather than invented ones.");
         renderFundamentals();
         return S.fundamentals;
       })
@@ -490,6 +494,21 @@
       stat("Put/Call ratio", chain && chain.pcr ? chain.pcr : "—",
            chain && chain.maxPain ? "max pain " + num(chain.maxPain) : "positioning unavailable");
 
+    // where the option crowd has drawn its lines
+    var posHtml = "";
+    if (chain && chain.supportStrike) {
+      posHtml = '<div class="notice info"><span class="k" style="color:var(--sky)">' +
+        'Where the option crowd is positioned</span>' +
+        'Most puts sit at <strong class="mono">' + num(chain.supportStrike) + '</strong> — the level ' +
+        'writers are betting it holds. Most calls sit at <strong class="mono">' +
+        num(chain.resistanceStrike) + '</strong> — the ceiling they are selling against.' +
+        (chain.callBuildup && chain.callBuildup.added > 0
+          ? ' Fresh call writing today at ' + num(chain.callBuildup.strike) + '.' : "") +
+        (chain.putBuildup && chain.putBuildup.added > 0
+          ? ' Fresh put writing at ' + num(chain.putBuildup.strike) + '.' : "") +
+        ' Open interest describes crowd positioning; it is context, never a signal on its own.</div>';
+    }
+
     // strategy selection — direction second, volatility first
     var strat, legs, why, maxLoss, maxGain;
     var width = Math.max(1, Math.round(spot * 0.02 / (spot > 5000 ? 100 : spot > 1000 ? 20 : 5)) *
@@ -562,9 +581,13 @@
         'Exit credit spreads at 50–60% of max profit; never hold a short leg into the final week ' +
         'for the last few rupees.</div>'
         : '<div class="notice info">No structure is worth entering on this underlying today.</div>') +
-      (iv == null ? '<div class="notice info" style="margin-top:10px">Live option chain unavailable, ' +
-        'so implied volatility is estimated from realised movement. Verify actual premiums and IV ' +
-        'in your broker terminal before placing.</div>' : "") +
+      (iv == null ? '<div class="notice info" style="margin-top:10px">' +
+        '<strong>Live option chain unavailable' +
+        (chain && chain.detail ? " (" + esc(chain.detail) + ")" : "") + '.</strong> ' +
+        (chain && chain.hint ? esc(chain.hint) : "Implied volatility is estimated from realised " +
+        "movement.") + ' Strikes and structure above are still valid; read the actual premiums ' +
+        'and IV from your broker terminal before placing.</div>' : "") +
+      posHtml +
       '</div></div>';
 
     el("fnoChain").innerHTML = chain && chain.strikes && chain.strikes.length ?

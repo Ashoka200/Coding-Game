@@ -179,6 +179,7 @@
   <nav role="tablist" aria-label="Sections">
     <button role="tab" aria-selected="true" data-tab="picks">Live picks</button>
     <button role="tab" aria-selected="false" data-tab="fundamentals">Fundamentals</button>
+    <button role="tab" aria-selected="false" data-tab="deep">360° deep dive</button>
     <button role="tab" aria-selected="false" data-tab="castle">Castle in the Air</button>
     <button role="tab" aria-selected="false" data-tab="fno">F&amp;O</button>
     <button role="tab" aria-selected="false" data-tab="invest">Invest an amount</button>
@@ -228,6 +229,23 @@
       <tbody id="fundRows"><tr><td colspan="9" class="muted">Press “Load fundamentals”.</td></tr></tbody>
     </table></div></div>
     <div id="fundDetail"></div>
+  </section>
+
+  <!-- ===== 360 DEEP DIVE ===== -->
+  <section class="pane" id="p-deep">
+    <h1>360° deep dive</h1>
+    <p class="lede">Read one company the way an owner would: where the money actually comes from,
+    what it depends on to make its product, what could break it, and what would have to go right
+    for it to be bigger in ten years.</p>
+    <div class="rowline" style="margin-bottom:16px">
+      <label class="muted">Company
+        <input type="text" id="deepSym" value="RELIANCE" style="width:160px" list="deepList">
+        <datalist id="deepList"></datalist>
+      </label>
+      <button class="ghost" id="loadDeep">Analyse</button>
+      <span class="muted" id="deepStatus"></span>
+    </div>
+    <div id="deepBody"><div class="notice info">Pick a company and press Analyse.</div></div>
   </section>
 
   <!-- ===== CASTLE IN THE AIR ===== -->
@@ -389,5 +407,6 @@ proposes, you decide and place every order yourself. Prices are end-of-day from 
 feed; confirm live prices in your broker app before acting.</footer>
 
 <script src="./app.js"></script>
+<script src="./deepdive.js"></script>
 </body>
 </html>
