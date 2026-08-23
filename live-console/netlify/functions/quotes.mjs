@@ -2,7 +2,63 @@
 // Batch last-price + 1y history summary for the planner, in one round trip.
 // Server-side (no CORS, no sandbox limits), edge-cached.
 
+import { getSeries } from "./_store.mjs";
+
 const MAX_SYMBOLS = 25;
+
+/** Compute the same indicator set from an already-stored series. */
+function fromSeries(symbol, s) {
+  const close = s.close.filter((x) => x != null);
+  const high = s.high.filter((x) => x != null);
+  const low = s.low.filter((x) => x != null);
+  if (close.length < 60) return null;
+
+  const trs = [];
+  for (let i = 1; i < close.length; i++) {
+    trs.push(Math.max(high[i] - low[i], Math.abs(high[i] - close[i - 1]),
+                      Math.abs(low[i] - close[i - 1])));
+  }
+  let atr = trs.slice(0, 14).reduce((a, b) => a + b, 0) / 14;
+  for (let i = 14; i < trs.length; i++) atr = (atr * 13 + trs[i]) / 14;
+
+  let up = 0, down = 0;
+  for (let i = 1; i <= 14 && i < close.length; i++) {
+    const d = close[i] - close[i - 1];
+    if (d > 0) up += d; else down -= d;
+  }
+  up /= 14; down /= 14;
+  for (let i = 15; i < close.length; i++) {
+    const d = close[i] - close[i - 1];
+    up = (up * 13 + Math.max(d, 0)) / 14;
+    down = (down * 13 + Math.max(-d, 0)) / 14;
+  }
+
+  const sma = (n) => (close.length < n ? null
+    : close.slice(-n).reduce((a, b) => a + b, 0) / n);
+  const sma200 = sma(200);
+  const prior200 = close.length >= 221
+    ? close.slice(-221, -21).reduce((a, b) => a + b, 0) / 200 : null;
+
+  return {
+    symbol,
+    last: close[close.length - 1],
+    prevClose: close.length > 1 ? close[close.length - 2] : null,
+    atr14: atr,
+    rsi14: down === 0 ? 100 : 100 - 100 / (1 + up / down),
+    swingLow20: Math.min(...low.slice(-20)),
+    sma50: sma(50),
+    sma200,
+    sma200Rising: sma200 != null && prior200 != null ? sma200 > prior200 : null,
+    high52: Math.max(...close.slice(-252)),
+    mom6m: close.length >= 126
+      ? close[close.length - 1] / close[close.length - 126] - 1 : null,
+    // history the snapshot path cannot provide
+    history_bars: close.length,
+    history_from: s.first,
+    as_of: s.last,
+    source: "cloud store",
+  };
+}
 
 async function fetchOne(symbol) {
   const yahoo = symbol.startsWith("^") || symbol.includes(".") ? symbol : symbol + ".NS";
@@ -80,7 +136,19 @@ export default async (req) => {
   }
 
   try {
-    const quotes = await Promise.all(symbols.map(fetchOne));
+    const quotes = await Promise.all(symbols.map(async (sym) => {
+      // Stored history first: it is deeper (10y) and does not depend on the
+      // upstream answering right now.
+      try {
+        const stored = await getSeries(sym);
+        if (stored) {
+          const computed = fromSeries(sym, stored);
+          if (computed) return computed;
+        }
+      } catch { /* store unavailable — fall through to a live fetch */ }
+      const live = await fetchOne(sym);
+      return live.error ? live : { ...live, source: "live fetch" };
+    }));
     return Response.json({ quotes }, {
       headers: {
         "Cache-Control": "public, max-age=600, stale-while-revalidate=3600",
