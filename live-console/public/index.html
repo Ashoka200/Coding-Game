@@ -197,6 +197,8 @@
     <button role="tab" aria-selected="false" data-tab="castle">Castle in the Air</button>
     <button role="tab" aria-selected="false" data-tab="fno">F&amp;O</button>
     <button role="tab" aria-selected="false" data-tab="invest">Invest an amount</button>
+    <button role="tab" aria-selected="false" data-tab="advice">What should I do</button>
+    <button role="tab" aria-selected="false" data-tab="news">News</button>
     <button role="tab" aria-selected="false" data-tab="portfolio">Portfolio</button>
     <button role="tab" aria-selected="false" data-tab="guide">Guide</button>
   </nav>
@@ -399,6 +401,38 @@
     </div>
   </section>
 
+  <!-- ===== ADVICE ===== -->
+  <section class="pane" id="p-advice">
+    <h1>What should I do<span data-info="verdict"></span></h1>
+    <p class="lede">One clear action per stock — sell, trim, hold, buy, or stay away — reached
+    through the same nine-step sequence every time: evidence, hard vetoes, your position, the
+    business, the price you pay, the news, the trend, the market, then the horizon. Open any
+    verdict to see every step that produced it.</p>
+    <div class="rowline" style="margin-bottom:14px">
+      <button class="ghost" id="runHoldings">Review what I own</button>
+      <input type="text" id="adviceSym" placeholder="or any symbol" style="width:150px" list="deepList">
+      <button class="ghost" id="runOne">Check this stock</button>
+      <span class="muted" id="adviceStatus"></span>
+    </div>
+    <div id="adviceBody"><div class="notice info">Press “Review what I own” for verdicts on your
+    saved positions, or type a symbol to check any stock.</div></div>
+  </section>
+
+  <!-- ===== NEWS ===== -->
+  <section class="pane" id="p-news">
+    <h1>News that moves stocks<span data-info="newstone"></span></h1>
+    <p class="lede">Headlines are classified by event type — results, orders, regulatory action,
+    downgrades, litigation — and scored for direction and recency, so the advisor can reason
+    about them instead of just listing them.</p>
+    <div class="rowline" style="margin-bottom:14px">
+      <button class="ghost" id="loadMarketNews">Market news</button>
+      <input type="text" id="newsSym" placeholder="company symbol" style="width:150px" list="deepList">
+      <button class="ghost" id="loadStockNews">Company news</button>
+      <span class="muted" id="newsStatus"></span>
+    </div>
+    <div id="newsBody"></div>
+  </section>
+
   <!-- ===== GUIDE ===== -->
   <section class="pane" id="p-guide">
     <h1>What everything means</h1>
@@ -426,5 +460,7 @@ feed; confirm live prices in your broker app before acting.</footer>
 <script src="./info.js"></script>
 <script src="./app.js"></script>
 <script src="./deepdive.js"></script>
+<script src="./verdict.js"></script>
+<script src="./advice.js"></script>
 </body>
 </html>
