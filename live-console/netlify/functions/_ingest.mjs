@@ -1,10 +1,20 @@
 // Fetch daily history and store it. Runs on Netlify, so it uses Netlify's network
 // rather than a laptop's — this is the "backfill", living in the cloud.
+//
+// A full Nifty 500 × 10-year pull is bigger than one function invocation, so the
+// work is a RESUMABLE JOB: each run processes symbols until its time budget is
+// nearly spent, saves a cursor, and the next run continues from there. Nothing
+// is re-fetched needlessly and nothing is silently skipped.
 
-import { getSeries, logRun, mergeSeries, putSeries, putUniverse } from "./_store.mjs";
+import {
+  clearJob, getJob, getSeries, jobIsStale, logRun, mergeSeries,
+  putJob, putSeries, putUniverse,
+} from "./_store.mjs";
 import { resolveUniverse, INDEX_SYMBOLS } from "./_universe.mjs";
 
 const UA = { "User-Agent": "Mozilla/5.0 (advisor-360 data layer)" };
+const CONCURRENCY = 4;
+const PAUSE_MS = 200;          // polite pacing between batches
 
 /** Daily OHLCV for one symbol. Throws rather than returning partial data. */
 export async function fetchSeries(symbol, range = "10y") {
@@ -28,52 +38,102 @@ export async function fetchSeries(symbol, range = "10y") {
   return { dates, open, high, low, close, volume };
 }
 
-/**
- * Ingest a batch of symbols. Returns a per-symbol result; a symbol that fails is
- * recorded as failed and never written with substituted data.
- */
-export async function ingestSymbols(symbols, { range = "10y", merge = false,
-                                               concurrency = 4 } = {}) {
-  const done = [], failed = [];
-  for (let i = 0; i < symbols.length; i += concurrency) {
-    const slice = symbols.slice(i, i + concurrency);
-    await Promise.all(slice.map(async (symbol) => {
-      try {
-        const fresh = await fetchSeries(symbol, range);
-        const series = merge ? mergeSeries(await getSeries(symbol), fresh) : fresh;
-        await putSeries(symbol, series);
-        done.push({ symbol, bars: series.dates.length, last: series.dates.at(-1) });
-      } catch (err) {
-        failed.push({ symbol, error: err.message });
-      }
-    }));
-    // be a polite client of a free source
-    if (i + concurrency < symbols.length) await new Promise((r) => setTimeout(r, 250));
-  }
-  return { done, failed };
+async function ingestOne(symbol, range, merge) {
+  const fresh = await fetchSeries(symbol, range);
+  const series = merge ? mergeSeries(await getSeries(symbol), fresh) : fresh;
+  await putSeries(symbol, series);
+  return { symbol, bars: series.dates.length, last: series.dates.at(-1) };
 }
 
-/** Full run: resolve the universe, store it, then ingest everything. */
-export async function runIngest({ range = "10y", merge = false, limit = 0,
-                                 trigger = "manual" } = {}) {
-  const started = Date.now();
+/** Start a job (or return the one already running). */
+export async function startJob({ range = "10y", merge = false, limit = 0,
+                                 trigger = "manual", force = false } = {}) {
+  const existing = await getJob();
+  if (existing && !existing.finished_at && !jobIsStale(existing) && !force) {
+    return { started: false, reason: "a job is already running", job: existing };
+  }
   const uni = await resolveUniverse();
   await putUniverse(uni.symbols, uni.source);
-
   let symbols = [...INDEX_SYMBOLS, ...uni.symbols];
   if (limit > 0) symbols = symbols.slice(0, limit);
 
-  const { done, failed } = await ingestSymbols(symbols, { range, merge });
-  const summary = {
-    trigger, range, merge,
-    universe_source: uni.source,
-    universe_note: uni.note,
-    requested: symbols.length,
-    stored: done.length,
-    failed: failed.length,
-    failures: failed.slice(0, 15),
-    seconds: Math.round((Date.now() - started) / 1000),
+  const job = {
+    started_at: new Date().toISOString(), finished_at: null, trigger,
+    range, merge, symbols, cursor: 0,
+    total: symbols.length, done: 0, failed: [],
+    universe_source: uni.source, universe_note: uni.note,
   };
-  await logRun(summary);
-  return summary;
+  await putJob(job);
+  return { started: true, job };
 }
+
+/**
+ * Process the job from its cursor until the time budget is nearly spent.
+ * Returns { finished, processed, job }.
+ */
+export async function processJob({ budgetMs = 10 * 60_000 } = {}) {
+  const started = Date.now();
+  let job = await getJob();
+  if (!job) return { finished: true, processed: 0, job: null, reason: "no job" };
+  if (job.finished_at) return { finished: true, processed: 0, job, reason: "already finished" };
+
+  let processed = 0;
+  while (job.cursor < job.symbols.length) {
+    if (Date.now() - started > budgetMs) break;            // hand over to the next run
+    const slice = job.symbols.slice(job.cursor, job.cursor + CONCURRENCY);
+    const results = await Promise.all(slice.map(async (symbol) => {
+      try {
+        await ingestOne(symbol, job.range, job.merge);
+        return null;
+      } catch (err) {
+        return { symbol, error: err.message };
+      }
+    }));
+    results.forEach((r) => { if (r) job.failed.push(r); });
+    job.cursor += slice.length;
+    job.done += slice.length - results.filter(Boolean).length;
+    processed += slice.length;
+    await putJob(job);                                     // progress survives a crash
+    if (job.cursor < job.symbols.length) {
+      await new Promise((r) => setTimeout(r, PAUSE_MS));
+    }
+  }
+
+  const finished = job.cursor >= job.symbols.length;
+  if (finished) {
+    job.finished_at = new Date().toISOString();
+    await putJob(job);
+    await logRun({
+      trigger: job.trigger, range: job.range, merge: job.merge,
+      universe_source: job.universe_source, universe_note: job.universe_note,
+      requested: job.total, stored: job.done, failed: job.failed.length,
+      failures: job.failed.slice(0, 15),
+      seconds: Math.round((Date.now() - new Date(job.started_at).getTime()) / 1000),
+    });
+  }
+  return { finished, processed, job };
+}
+
+/** Ask this site to continue the job in a fresh invocation. Fire and forget. */
+export async function continueInBackground(siteUrl, token) {
+  if (!siteUrl) return false;
+  const url = new URL("/api/backfill-background", siteUrl);
+  url.searchParams.set("resume", "1");
+  if (token) url.searchParams.set("token", token);
+  try {
+    // Deliberately not awaited to completion — the point is to hand off.
+    fetch(url.toString(), { method: "POST" }).catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Convenience for small runs: start and drain in one invocation. */
+export async function runIngest(opts = {}) {
+  await startJob({ ...opts, force: true });
+  const { job } = await processJob({ budgetMs: opts.budgetMs ?? 10 * 60_000 });
+  return job;
+}
+
+export { clearJob };

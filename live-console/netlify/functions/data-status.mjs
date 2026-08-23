@@ -1,14 +1,20 @@
 // GET /api/data-status — what the cloud store actually holds, and how the last
 // runs went. This is how you check the backfill without guessing.
 
-import { getRunLog, getSeries, getUniverse, priceStore } from "./_store.mjs";
+import { maybeAutoStart } from "./_autostart.mjs";
+import { getJob, getRunLog, getSeries, getUniverse, jobIsStale, priceStore } from "./_store.mjs";
 import { jsonResponse } from "./_lib.mjs";
 
 export default async (req) => {
   const url = new URL(req.url);
   const sample = (url.searchParams.get("symbol") || "").toUpperCase();
 
+  const auto = url.searchParams.get("autostart") === "0"
+    ? { triggered: false, reason: "suppressed" }
+    : await maybeAutoStart();
+
   try {
+    const job = await getJob();
     const universe = await getUniverse();
     const { blobs } = await priceStore().list();
     const stored = (blobs || []).map((b) => b.key);
@@ -23,7 +29,21 @@ export default async (req) => {
     }
 
     const runs = await getRunLog();
+    const running = job && !job.finished_at && !jobIsStale(job);
     return jsonResponse({
+      backfill: job ? {
+        state: job.finished_at ? "finished" : running ? "running" : "stalled",
+        done: job.done, failed: job.failed.length, total: job.total,
+        percent: job.total ? Math.round((job.cursor / job.total) * 100) : 0,
+        started_at: job.started_at, finished_at: job.finished_at,
+        updated_at: job.updated_at, trigger: job.trigger,
+        recent_failures: job.failed.slice(-8),
+        note: running ? "Working. Call again in a minute to see progress."
+          : job.finished_at ? "Complete."
+          : "The runner stopped before finishing. POST /api/backfill-background?resume=1 "
+            + "to continue from where it left off.",
+      } : null,
+      autostart: auto,
       stored_symbols: stored.length,
       symbols: stored.slice(0, 400).sort(),
       universe: universe
