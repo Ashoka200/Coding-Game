@@ -37,9 +37,28 @@ Three properties matter:
 | `get_portfolio` | open positions, exit prices, portfolio heat |
 | `build_portfolio_plan` | a complete proposed plan for an amount (proposal only) |
 | `get_universe` | tradeable symbols the local database knows |
+| `get_deep_dive` | full published statements — P&L, balance sheet, cash flow, ratios, shareholding |
 
 No tool places an order. Order preparation stays in the CLI, behind explicit
 human approval.
+
+## Hybrid: it works with or without a local database
+
+`ADVISOR_MODE` controls where figures come from (default `auto`):
+
+| Mode | Behaviour |
+|---|---|
+| `auto` | Local database first; falls back to the deployed console API when it is absent or silent |
+| `local` | Local only — fails cleanly rather than reaching out |
+| `remote` | Console API only — no local setup needed |
+
+Provenance always names which one answered, and remote mode carries its own
+caveats, because it is genuinely thinner: no stored history, so no backtests, no
+portfolio heat, no point-in-time fundamentals, and market breadth is unavailable
+(the regime falls back to an index-only reading, which is stated in the response).
+
+Local-only tools — `get_portfolio`, `build_portfolio_plan`, `get_universe` — say
+so explicitly instead of degrading into something less accurate.
 
 ## Running it
 
@@ -49,16 +68,16 @@ pip install -r mcp-server/requirements.txt
 cd stock-advisor && bash run_live.sh --backfill
 ```
 
-**Claude Code** — add to `~/.claude/settings.json` (or the project's `.mcp.json`):
+One command configures **both** Claude Code and Claude Desktop with correct
+absolute paths for this machine:
 
-```json
-{ "mcpServers": {
-    "advisor": { "command": "python", "args": ["-m", "advisor_mcp.server"],
-                 "cwd": "/absolute/path/to/Coding-Game/mcp-server",
-                 "env": { "PYTHONPATH": "/absolute/path/to/Coding-Game/stock-advisor/src" } } } }
+```bash
+python mcp-server/setup_mcp.py            # print the config and where it goes
+python mcp-server/setup_mcp.py --write    # merge into both, backing up originals
 ```
 
-**Claude Desktop** — the same block in `claude_desktop_config.json`.
+`--write` preserves any other MCP servers and unrelated settings already in
+those files. Restart both clients afterwards.
 
 Then ask in plain language: *"What does the advisor say about SUNPHARMA?"* — the
 model calls `get_verdict`, and answers from the returned figures with citations,
