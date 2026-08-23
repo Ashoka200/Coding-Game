@@ -187,3 +187,39 @@ def test_pledge_flag_is_penalised():
     clean = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True,
                    ownership={"smart_money_score": 45, "flow": "stable", "flags": []})
     assert pledged.conviction < clean.conviction
+
+
+# ---------- credit gate ----------
+
+def test_maturity_wall_shortfall_vetoes_regardless_of_everything_else():
+    credit = {"flags": ["maturity_wall_shortfall"],
+              "maturity_wall": {"coverage": 0.6},
+              "verdict": "serious credit risk"}
+    v = decide("X", FEAT, CHEAP_SOUND, 80, stage=2, regime_risk_on=True,
+               news_pressure={"tone": "positive", "net": 3, "material_count": 2},
+               credit=credit)
+    assert v.action == "AVOID"          # a great business that cannot pay next year
+    assert any("right up until it isn't" in s.finding for s in v.chain)
+
+
+def test_distress_plus_manipulation_together_vetoes():
+    credit = {"flags": ["altman_distress", "beneish_flagged"], "verdict": "serious"}
+    v = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True, credit=credit)
+    assert v.action == "AVOID"
+    assert any("reason to leave" in s.finding for s in v.chain)
+
+
+def test_single_credit_weakness_lowers_conviction_without_vetoing():
+    weak = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True,
+                  credit={"flags": ["covenant_headroom_thin", "piotroski_weak"],
+                          "verdict": "credit weaknesses worth pricing in"})
+    clean = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True,
+                   credit={"flags": [], "verdict": "no credit weakness"})
+    assert weak.action != "AVOID"                  # not fatal on its own
+    assert weak.conviction < clean.conviction - 15
+    assert any(s.stage == "Credit" for s in weak.chain)
+
+
+def test_missing_credit_screens_are_recorded_as_a_gap():
+    v = decide("X", FEAT, CHEAP_SOUND, 70, stage=2, regime_risk_on=True)
+    assert "credit screens" in v.unknowns

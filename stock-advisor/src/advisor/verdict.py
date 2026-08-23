@@ -81,7 +81,7 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
            news_pressure: dict | None = None, stage: int | None = None,
            regime_risk_on: bool = True, holding: dict | None = None,
            book: str = "investing", valuation: dict | None = None,
-           ownership: dict | None = None) -> Verdict:
+           ownership: dict | None = None, credit: dict | None = None) -> Verdict:
     """Run the nine stages. Every argument may be None — missing evidence lowers
     the confidence ceiling rather than being filled in."""
     chain: list[Step] = []
@@ -126,6 +126,18 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
             label = getattr(g, "event_label", None) or (g.get("event_label") if isinstance(g, dict) else "")
             title = getattr(g, "title", None) or (g.get("title") if isinstance(g, dict) else "")
             veto = f"A grave event is reported: {label.lower()} — “{title[:110]}”"
+    if veto is None and credit:
+        credit_flags = set(credit.get("flags") or [])
+        if "maturity_wall_shortfall" in credit_flags:
+            wall = credit.get("maturity_wall") or {}
+            veto = ("Debt falling due within a year exceeds every source of cash "
+                    f"available to meet it ({wall.get('coverage', '?')}× cover). "
+                    "The company must refinance or sell something, and refinancing is "
+                    "available right up until it isn't.")
+        elif {"altman_distress", "beneish_flagged"} <= credit_flags:
+            veto = ("The balance sheet screens as distressed AND the earnings screen "
+                    "flags possible manipulation. Either alone is a reason to read "
+                    "further; together they are a reason to leave.")
     if veto is None and fundamentals:
         de = fundamentals.get("debt_to_equity")
         cover = fundamentals.get("interest_cover")
@@ -167,6 +179,28 @@ def decide(symbol: str, features: dict | None = None, fundamentals: dict | None 
         conviction += 12 if quality >= 70 else 4 if quality >= 55 else -6 if quality >= 40 else -18
     else:
         step("Business", "No financials available, so nothing here can be a long-term call.")
+
+    # --- 3b: credit and solvency -------------------------------------------
+    # A bad pick costs money; a balance-sheet failure costs the position.
+    if credit:
+        cflags = set(credit.get("flags") or [])
+        if cflags:
+            step("Credit", (credit.get("verdict") or "credit weaknesses found")
+                 + f" ({', '.join(sorted(cflags))}).")
+            if "altman_distress" in cflags:
+                conviction -= 20
+            if "beneish_flagged" in cflags:
+                conviction -= 15
+            if "covenant_headroom_thin" in cflags:
+                conviction -= 10
+            if "piotroski_weak" in cflags:
+                conviction -= 8
+        else:
+            step("Credit", credit.get("verdict")
+                 or "No balance-sheet stress in the numbers available.")
+            conviction += 5
+    else:
+        unknowns.append("credit screens")
 
     # --- 4: valuation ------------------------------------------------------
     # A discounted-cash-flow view outranks a bare multiple when it exists: the
