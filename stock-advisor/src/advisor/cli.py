@@ -17,9 +17,40 @@ Usage (from stock-advisor/src):
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import date
 
 from . import db
+
+# Hosts a step depends on, so the message can name the one that refused.
+_HOST_HINTS = {
+    "nseindia": "NSE (archives.nseindia.com / nsearchives.nseindia.com)",
+    "yahoo": "Yahoo Finance",
+    "screener": "screener.in",
+    "bseindia": "BSE",
+    "telegram": "Telegram",
+}
+
+
+def _friendly_network_error(exc: Exception) -> str:
+    """Turn a requests traceback into something a person can act on."""
+    text = str(exc)
+    host = next((label for key, label in _HOST_HINTS.items() if key in text), None)
+    lines = [f"Could not reach {host}." if host else "A data source could not be reached."]
+    low = text.lower()
+    if "403" in text or "forbidden" in low:
+        lines.append("The connection was refused (403). This usually means a proxy, VPN or "
+                     "corporate network is blocking it, or the source is throttling your IP.")
+        lines.append("Try again from a normal home connection, or wait and retry.")
+    elif "timed out" in low or "timeout" in low:
+        lines.append("The request timed out. The source may be slow or briefly down; retry "
+                     "in a few minutes.")
+    elif "name or service not known" in low or "nodename" in low or "getaddrinfo" in low:
+        lines.append("DNS could not resolve the host — check that this machine is online.")
+    else:
+        lines.append(f"Underlying error: {type(exc).__name__}: {text[:200]}")
+    lines.append("Nothing was written to the database. No figures are ever guessed to fill a gap.")
+    return "\n".join(lines)
 
 
 def main() -> None:
@@ -80,6 +111,20 @@ def main() -> None:
 
     args = p.parse_args()
 
+    try:
+        _dispatch(p, args)
+    except KeyboardInterrupt:
+        print("\ninterrupted — nothing partial was committed")
+        sys.exit(130)
+    except Exception as exc:                     # noqa: BLE001 - top-level UX boundary
+        import requests
+        if isinstance(exc, (requests.RequestException, OSError)):
+            print(_friendly_network_error(exc), file=sys.stderr)
+            sys.exit(2)
+        raise
+
+
+def _dispatch(p, args) -> None:
     if args.cmd == "init-db":
         db.init_db(); print(f"initialized {db.config.DB_PATH}")
     elif args.cmd == "update-universe":
