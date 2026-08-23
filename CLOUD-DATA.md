@@ -54,11 +54,22 @@ Useful parameters while testing:
 | `?range=2y` | shorter history, much faster |
 | `?merge=1` | keep what is stored and append only new sessions |
 
-## Ongoing: it tops itself up
+## It also starts itself, hourly
 
-`nightly-ingest.mjs` is a **scheduled function** running 13:15 UTC on weekdays
-(18:45 IST, after the close). It pulls the last three months and merges them
-into the stored series, so history stays current with no cron on your machine.
+`nightly-ingest.mjs` is a **scheduled function running every hour**, but it does
+almost nothing most of the time. Each run decides:
+
+| Store state | Action |
+|---|---|
+| empty or thin (<20 symbols) | start a full 10-year backfill |
+| a job already in progress | continue it from its cursor |
+| populated but stale (>20h) | short merge top-up |
+| populated and fresh | return immediately, touching no upstream |
+
+That last row is what makes hourly scheduling polite: a current store costs one
+cheap metadata read per hour and **no upstream requests at all**. The empty-store
+row is what makes the system self-starting — nobody has to visit the site or run
+a command, and a wiped store refills within the hour.
 
 ## Protecting the endpoint
 
