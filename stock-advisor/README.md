@@ -24,7 +24,12 @@ phases), `EXTENDED-ROADMAP.md` (ML/intraday/multi-user phases), and `knowledge/`
   -chain ingestion needs a broker API (next).
 - **Phase 7 (execution)**: deliberately manual — the system outputs exact order
   plans; you place them. Broker-API automation only after the paper period.
-- All engine logic covered by offline tests (`python -m pytest tests/ -q`, 20 tests).
+- **Pro stack** (see `WALL-STREET-STACK.md`): multi-factor sector-neutral ranking
+  with turnover hysteresis (`factors.py`), portfolio risk platform — shrinkage
+  covariance, VaR/CVaR, crisis stress replay, diversification diagnostics
+  (`risk.py`), walk-forward strategy validation (`walkforward.py`), Telegram
+  push alerts (`notify.py`). One-command bootstrap: `bash run_live.sh --backfill`.
+- All engine logic covered by offline tests (`python -m pytest tests/ -q`, 27 tests).
 - Live NSE/Yahoo fetches require normal internet access (blocked in some sandboxes);
   run the commands below on your own machine.
 

@@ -48,6 +48,13 @@ def main() -> None:
     bt = sub.add_parser("backtest")
     bt.add_argument("--symbols")
 
+    sub.add_parser("factors")
+    sub.add_parser("risk")
+    wf = sub.add_parser("walkforward")
+    wf.add_argument("--folds", type=int, default=4)
+    nt = sub.add_parser("notify")
+    nt.add_argument("--capital", type=float, default=1_000_000)
+
     rp = sub.add_parser("report")
     rp.add_argument("symbol")
 
@@ -109,6 +116,24 @@ def main() -> None:
         symbols = args.symbols.split(",") if args.symbols else None
         result = backtest_breakout(load_prices_from_db(symbols))
         print(result.stats or "no trades generated")
+    elif args.cmd == "factors":
+        from .factors import rank_factors
+        table = rank_factors()
+        print(table.head(30).to_string() if not table.empty
+              else "no data — run backfill + fetch-fundamentals first")
+    elif args.cmd == "risk":
+        import json as _json
+        from .risk import portfolio_risk_report
+        print(_json.dumps(portfolio_risk_report(), indent=2, default=str))
+    elif args.cmd == "walkforward":
+        from .backtest import load_prices_from_db
+        from .walkforward import walk_forward
+        import json as _json
+        print(_json.dumps(walk_forward(load_prices_from_db(), n_folds=args.folds),
+                          indent=2))
+    elif args.cmd == "notify":
+        from .notify import notify_digest
+        print(f"sent {notify_digest(capital=args.capital)} message(s)")
     elif args.cmd == "report":
         from .ai_report import generate_report
         print(generate_report(args.symbol))
