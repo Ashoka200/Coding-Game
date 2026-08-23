@@ -32,6 +32,20 @@ async function fetchOne(symbol) {
   let atr = trs.slice(0, 14).reduce((a, b) => a + b, 0) / 14;
   for (let i = 14; i < trs.length; i++) atr = (atr * 13 + trs[i]) / 14;
 
+  // RSI-14, Wilder smoothing — the real thing, not a range position
+  let up = 0, down = 0;
+  for (let i = 1; i <= 14 && i < close.length; i++) {
+    const d = close[i] - close[i - 1];
+    if (d > 0) up += d; else down -= d;
+  }
+  up /= 14; down /= 14;
+  for (let i = 15; i < close.length; i++) {
+    const d = close[i] - close[i - 1];
+    up = (up * 13 + Math.max(d, 0)) / 14;
+    down = (down * 13 + Math.max(-d, 0)) / 14;
+  }
+  const rsi14 = down === 0 ? 100 : 100 - 100 / (1 + up / down);
+
   const last = result.meta?.regularMarketPrice ?? close[close.length - 1];
   const sma = (n) => {
     if (close.length < n) return null;
@@ -44,8 +58,9 @@ async function fetchOne(symbol) {
   return {
     symbol,
     last,
-    prevClose: result.meta?.chartPreviousClose ?? close[close.length - 2],
+    prevClose: close.length > 1 ? close[close.length - 2] : null,
     atr14: atr,
+    rsi14,
     swingLow20: Math.min(...low.slice(-20)),
     sma50: sma(50),
     sma200,

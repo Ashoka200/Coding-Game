@@ -72,12 +72,7 @@
   function stageLabel(s) {
     return { 2:["Uptrend","up"], 1:["Basing","warn"], 3:["Topping","warn"], 4:["Downtrend","down"] }[s];
   }
-  function rsiFrom(q) {
-    // the quotes function gives us trend inputs; approximate RSI-14 position from
-    // where price sits between the 52w high and the 20d swing low
-    if (q.high52 == null || q.swingLow20 == null || q.high52 === q.swingLow20) return null;
-    return clamp(100 * (q.last - q.swingLow20) / (q.high52 - q.swingLow20), 0, 100);
-  }
+  function rsiFrom(q) { return q.rsi14 == null ? null : q.rsi14; }
   function techScore(q) {
     var s = 0, st = stage(q);
     s += ({2:40,1:20,3:10,4:0})[st];
@@ -125,14 +120,16 @@
     chip.style.background = "var(--" + (state[1] === "up" ? "up-soft" : state[1] === "down" ? "down-soft" : "warn-soft") + ")";
     chip.style.color = "var(--" + state[1] + ")";
     el("regimeStats").innerHTML =
-      stat("Market state", state[0], state[2], state[1] === "up" ? "good" : state[1] === "down" ? "bad" : "warnb") +
+      stat("Market state", state[0], state[2],
+           state[1] === "up" ? "good" : state[1] === "down" ? "bad" : "warnb", "regime") +
       stat("Nifty 50", num(n.last), (above ? "above" : "below") + " its 200-day average") +
       stat("From 1-year high", pct(dd), dd < -0.1 ? "a real correction" : "normal range") +
       stat("Suggestions today", "—", "counted after the scan", "");
     return { state: state[0], riskOn: state[0] === "EXPANSION" };
   }
-  function stat(k, v, s, cls) {
-    return '<div class="stat ' + (cls || "") + '"><div class="k">' + esc(k) + '</div>' +
+  function stat(k, v, s, cls, infoKey) {
+    return '<div class="stat ' + (cls || "") + '"><div class="k">' + esc(k) +
+           (infoKey ? '<span data-info="' + infoKey + '"></span>' : "") + '</div>' +
            '<div class="v">' + v + '</div><div class="s">' + esc(s || "") + '</div></div>';
   }
 
@@ -487,12 +484,14 @@
 
     el("fnoStats").innerHTML =
       stat("Spot", num(spot, 2), sym) +
-      stat("Realised volatility", hv == null ? "—" : (hv * 100).toFixed(1) + "%", "annualised, from daily range") +
+      stat("Realised volatility", hv == null ? "—" : (hv * 100).toFixed(1) + "%",
+           "annualised, from daily range", "", "realisedvol") +
       stat("Implied volatility", iv == null ? "—" : (iv * 100).toFixed(1) + "%",
            iv == null ? "chain unavailable" : (expensive ? "options are expensive" : "options are cheap"),
-           iv == null ? "" : (expensive ? "warnb" : "good")) +
+           iv == null ? "" : (expensive ? "warnb" : "good"), "iv") +
       stat("Put/Call ratio", chain && chain.pcr ? chain.pcr : "—",
-           chain && chain.maxPain ? "max pain " + num(chain.maxPain) : "positioning unavailable");
+           chain && chain.maxPain ? "max pain " + num(chain.maxPain) : "positioning unavailable",
+           "", "pcr");
 
     // where the option crowd has drawn its lines
     var posHtml = "";
@@ -570,12 +569,13 @@
       '<div class="card">' +
       (legs.length ?
         '<div class="stats" style="grid-template-columns:1fr 1fr">' +
-        stat("Max loss per lot", inr(lossPerLot), "this is your risk, not the margin", "bad") +
+        stat("Max loss per lot", inr(lossPerLot), "this is your risk, not the margin", "bad", "maxloss") +
         stat("Max gain per lot", inr(maxGain * lot), "at or beyond the sold strike", "good") +
         stat("Lots at 0.75% risk", String(Math.max(lots, 0)), "of " + inr(capital)) +
         stat("Reward : risk", maxLoss > 0 ? (maxGain / maxLoss).toFixed(2) + " : 1" : "—", "before costs") +
         '</div>' +
-        '<div class="notice warnn" style="margin-top:12px"><span class="k">Underlying target &amp; stop</span>' +
+        '<div class="notice warnn" style="margin-top:12px"><span class="k">Underlying target &amp; stop' +
+        '<span data-info="underlyingtarget"></span></span>' +
         'Take profit if ' + esc(sym) + ' reaches <strong class="mono">' + num(target, 2) + '</strong>; ' +
         'abandon the trade if it hits <strong class="mono">' + num(stop, 2) + '</strong>. ' +
         'Exit credit spreads at 50–60% of max profit; never hold a short leg into the final week ' +

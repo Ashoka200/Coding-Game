@@ -391,15 +391,17 @@
       statBox("Sales growth (5y)", pctv(a.salesCagr5), "per year, compounded") +
       statBox("Profit growth (5y)", pctv(a.profitCagr5), "per year, compounded") +
       statBox("Operating margin", a.opmNow == null ? "—" : num(a.opmNow, 1) + "%",
-        a.opmTrend == null ? "" : (a.opmTrend > 0.1 ? "widening" : a.opmTrend < -0.1 ? "narrowing" : "steady")) +
+        a.opmTrend == null ? "" : (a.opmTrend > 0.1 ? "widening" : a.opmTrend < -0.1 ? "narrowing" : "steady"),
+        "", "opmargin") +
       statBox("Cash conversion", a.cashConv == null ? "—" : Math.round(a.cashConv * 100) + "%",
         "of 5y profit collected in cash",
-        a.cashConv == null ? "" : a.cashConv < 0.6 ? "bad" : a.cashConv > 0.85 ? "good" : "warnb") +
+        a.cashConv == null ? "" : a.cashConv < 0.6 ? "bad" : a.cashConv > 0.85 ? "good" : "warnb",
+        "cashconv") +
       statBox("Debt / equity", num(a.de, 2), a.de == null ? "" : a.de > 1.5 ? "leveraged" : "conservative",
-        a.de == null ? "" : a.de > 1.5 ? "bad" : "good") +
+        a.de == null ? "" : a.de > 1.5 ? "bad" : "good", "de") +
       statBox("Return on capital", a.roceNow == null ? "—" : num(a.roceNow, 1) + "%",
         "against a ~12% cost of capital",
-        a.roceNow == null ? "" : a.roceNow > 18 ? "good" : a.roceNow < 12 ? "bad" : "warnb") +
+        a.roceNow == null ? "" : a.roceNow > 18 ? "good" : a.roceNow < 12 ? "bad" : "warnb", "roce") +
       '</div>';
 
     /* trends */
@@ -468,8 +470,9 @@
     body.innerHTML = html;
   }
 
-  function statBox(k, v, s, cls) {
-    return '<div class="stat ' + (cls || "") + '"><div class="k">' + esc(k) + '</div>' +
+  function statBox(k, v, s, cls, infoKey) {
+    return '<div class="stat ' + (cls || "") + '"><div class="k">' + esc(k) +
+      (infoKey ? '<span data-info="' + infoKey + '"></span>' : "") + '</div>' +
       '<div class="v">' + v + '</div><div class="s">' + esc(s || "") + '</div></div>';
   }
 
