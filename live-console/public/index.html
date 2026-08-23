@@ -10,14 +10,14 @@
     --bg:#F6F7F3; --surface:#FFFFFF; --surface2:#EEF0EA; --ink:#1D2420;
     --muted:#5D675F; --line:#D8DCD3; --accent:#A8761F; --accent-soft:#F3E8D2;
     --up:#1E7D4F; --up-soft:#DFEEE5; --down:#B0372D; --down-soft:#F4E0DD;
-    --warn:#8A6A12; --warn-soft:#F2EAD0;
+    --warn:#8A6A12; --warn-soft:#F2EAD0; --sky:#2F6D8C; --sky-soft:#DEEAF0;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg:#121714; --surface:#1A211C; --surface2:#222B25; --ink:#E8EAE3;
       --muted:#9AA69C; --line:#313B33; --accent:#D9A441; --accent-soft:#33290F;
       --up:#4CAF7D; --up-soft:#16301F; --down:#E07A6B; --down-soft:#38201C;
-      --warn:#D9B34A; --warn-soft:#322A10;
+      --warn:#D9B34A; --warn-soft:#322A10; --sky:#7FB4CC; --sky-soft:#17262D;
     }
   }
   * { box-sizing:border-box; }
@@ -25,535 +25,369 @@
          font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px; line-height:1.55; }
   .mono { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
 
-  header { background:var(--surface); border-bottom:1px solid var(--line); padding:16px 24px; }
-  .hwrap { max-width:1000px; margin:0 auto; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  header { background:var(--surface); border-bottom:1px solid var(--line);
+           position:sticky; top:0; z-index:30; }
+  .hwrap { max-width:1120px; margin:0 auto; padding:13px 22px 0;
+           display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
   .brand { font-family:Archivo,sans-serif; font-weight:800; font-size:17px; letter-spacing:-0.01em; }
   .brand em { color:var(--accent); font-style:normal; }
-  .steps { display:flex; align-items:center; gap:10px; margin-left:auto; flex-wrap:wrap; }
+  #regimeChip { font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
+    letter-spacing:.06em; text-transform:uppercase; padding:4px 11px; border-radius:999px;
+    background:var(--surface2); color:var(--muted); }
+  #asof { margin-left:auto; color:var(--muted); font-size:12.5px; }
+  nav { max-width:1120px; margin:0 auto; padding:0 22px; display:flex; gap:2px;
+        overflow-x:auto; }
+  nav button { font-family:Archivo,sans-serif; font-weight:600; font-size:13px;
+    background:none; border:none; color:var(--muted); padding:11px 13px 12px;
+    cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
+  nav button[aria-selected="true"] { color:var(--ink); border-bottom-color:var(--accent); }
+  nav button:focus-visible, button:focus-visible, input:focus-visible,
+  select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  main { max-width:1120px; margin:0 auto; padding:26px 22px 70px; }
+  section.pane { display:none; }
+  section.pane.active { display:block; }
+  h1 { font-family:Archivo,sans-serif; font-weight:800; font-size:26px;
+       letter-spacing:-0.02em; margin:0 0 6px; text-wrap:balance; }
+  h2 { font-family:Archivo,sans-serif; font-weight:700; font-size:16px; margin:24px 0 10px; }
+  .lede { color:var(--muted); margin:0 0 20px; max-width:66ch; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:20px; }
+  .card.tight { padding:6px 20px 14px; }
+  .lbl { font-family:Archivo,sans-serif; font-weight:700; font-size:11px; letter-spacing:.07em;
+         text-transform:uppercase; color:var(--muted); display:block; margin-bottom:7px; }
+
+  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  th { text-align:left; font-family:Archivo,sans-serif; font-size:10.5px; text-transform:uppercase;
+       letter-spacing:.07em; color:var(--muted); padding:10px 9px;
+       border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px 9px; border-bottom:1px solid var(--surface2); white-space:nowrap; }
+  .tablewrap { overflow-x:auto; }
+  .num { text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+  tr.click { cursor:pointer; }
+  tr.click:hover td { background:var(--surface2); }
+  .sym { font-family:Archivo,sans-serif; font-weight:700; }
+  .pos { color:var(--up); } .neg { color:var(--down); }
+
+  .pill { display:inline-block; font-family:Archivo,sans-serif; font-weight:700; font-size:10.5px;
+          letter-spacing:.05em; text-transform:uppercase; border-radius:999px; padding:3px 9px; }
+  .pill.up{background:var(--up-soft);color:var(--up)} .pill.down{background:var(--down-soft);color:var(--down)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.acc{background:var(--accent-soft);color:var(--accent)}
+  .pill.sky{background:var(--sky-soft);color:var(--sky)} .pill.mut{background:var(--surface2);color:var(--muted)}
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
+  .stat { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent);
+          border-radius:8px; padding:15px 17px; display:flex; flex-direction:column; gap:4px; }
+  .stat .k { font-family:Archivo,sans-serif; font-weight:700; font-size:10.5px;
+             letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
+  .stat .v { font-family:"IBM Plex Mono",monospace; font-size:23px; font-weight:600;
+             font-variant-numeric:tabular-nums; }
+  .stat .s { font-size:12.5px; color:var(--muted); }
+  .stat.good{border-left-color:var(--up)} .stat.bad{border-left-color:var(--down)}
+  .stat.warnb{border-left-color:var(--warn)}
+
+  .notice { border-radius:8px; padding:14px 18px; font-size:14px; line-height:1.5; margin:12px 0; }
+  .notice.warnn { background:var(--warn-soft); color:var(--ink); }
+  .notice.err { background:var(--down-soft); color:var(--down); }
+  .notice.info { background:var(--surface2); color:var(--muted); }
+  .notice .k { display:block; font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
+               letter-spacing:.07em; text-transform:uppercase; color:var(--warn); margin-bottom:4px; }
+
+  button.primary { font-family:Archivo,sans-serif; font-weight:700; font-size:15px;
+    background:var(--accent); color:#fff; border:none; border-radius:6px; padding:14px 22px;
+    cursor:pointer; min-height:50px; display:flex; align-items:center; justify-content:center;
+    gap:9px; width:100%; }
+  button.primary:disabled { opacity:.5; cursor:default; }
+  button.ghost { font-family:Archivo,sans-serif; font-weight:600; font-size:13.5px;
+    background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    border-radius:6px; padding:11px 18px; cursor:pointer; min-height:44px; }
+  input[type="text"], input[type="number"], select {
+    font-family:"IBM Plex Mono",monospace; font-size:13.5px; padding:9px 11px;
+    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); }
+  .rowline { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .spin { display:inline-block; width:13px; height:13px; border:2px solid var(--accent-soft);
+          border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite;
+          vertical-align:-2px; margin-right:7px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce){ .spin{animation:none} }
+  .muted { color:var(--muted); font-size:12.5px; }
+
+  /* score bars */
+  .bar { display:flex; align-items:center; gap:9px; margin-bottom:6px; font-size:12.5px; }
+  .bar .bl { flex:0 0 128px; color:var(--muted); }
+  .track { flex:1; height:7px; background:var(--surface2); border-radius:4px; overflow:hidden; min-width:70px; }
+  .fill { height:100%; border-radius:4px; background:var(--accent); }
+  .bar .bv { flex:0 0 40px; text-align:right; font-family:"IBM Plex Mono",monospace; }
+
+  /* castle quadrant */
+  .quad { position:relative; width:100%; aspect-ratio:1/0.72; background:var(--surface);
+          border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .quad .qc { position:absolute; inset:0; }
+  .quad .qlabel { position:absolute; font-family:Archivo,sans-serif; font-weight:700;
+                  font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+                  color:var(--muted); opacity:.85; }
+  .dot { position:absolute; width:11px; height:11px; border-radius:50%; background:var(--accent);
+         transform:translate(-50%,-50%); border:2px solid var(--surface); cursor:pointer; }
+  .dot span { position:absolute; left:13px; top:-4px; font-family:Archivo,sans-serif;
+              font-weight:700; font-size:10.5px; color:var(--ink); white-space:nowrap; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:860px){ .grid2 { grid-template-columns:1fr; } }
+  .steps { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:20px; }
   .step { display:flex; align-items:center; gap:7px; opacity:.42; }
-  .step.on { opacity:1; }
-  .step.done { opacity:.6; }
-  .dot { width:24px; height:24px; border-radius:999px; border:2px solid var(--muted);
-         color:var(--muted); display:flex; align-items:center; justify-content:center;
-         font-family:Archivo,sans-serif; font-weight:700; font-size:12px; }
-  .step.on .dot { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .step.done .dot { background:var(--up); border-color:var(--up); color:#fff; }
+  .step.on { opacity:1; } .step.done { opacity:.6; }
+  .dotn { width:24px; height:24px; border-radius:999px; border:2px solid var(--muted);
+          color:var(--muted); display:flex; align-items:center; justify-content:center;
+          font-family:Archivo,sans-serif; font-weight:700; font-size:12px; }
+  .step.on .dotn { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .step.done .dotn { background:var(--up); border-color:var(--up); color:#fff; }
   .step span { font-family:Archivo,sans-serif; font-weight:700; font-size:12.5px; }
-  .bar { width:34px; height:2px; background:var(--line); }
-  .bar.done { background:var(--up); }
-
-  main { max-width:1000px; margin:0 auto; padding:32px 24px 70px; }
-  .screen { display:none; }
-  .screen.active { display:block; }
-  h1 { font-family:Archivo,sans-serif; font-weight:800; font-size:30px; letter-spacing:-0.02em;
-       margin:0 0 8px; text-wrap:balance; }
-  .lede { color:var(--muted); margin:0 0 24px; max-width:62ch; }
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:24px; }
-  .lbl { font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px; letter-spacing:.07em;
-         text-transform:uppercase; color:var(--muted); display:block; margin-bottom:8px; }
-
+  .sbar { width:30px; height:2px; background:var(--line); }
+  .sbar.done { background:var(--up); }
+  .screen { display:none; } .screen.active { display:block; }
   .amt { display:flex; align-items:baseline; gap:8px; border-bottom:2px solid var(--accent); padding-bottom:8px; }
-  .amt span { font-family:"IBM Plex Mono",monospace; font-size:26px; color:var(--muted); }
-  .amt input { flex:1; font-family:"IBM Plex Mono",monospace; font-size:34px; font-weight:600;
+  .amt span { font-family:"IBM Plex Mono",monospace; font-size:25px; color:var(--muted); }
+  .amt input { flex:1; font-family:"IBM Plex Mono",monospace; font-size:32px; font-weight:600;
                font-variant-numeric:tabular-nums; border:none; background:none; color:var(--ink);
                padding:0; width:100%; }
   .amt input:focus { outline:none; }
   .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .chip { font-family:"IBM Plex Mono",monospace; font-size:13px; border:1px solid var(--line);
-          background:var(--surface); color:var(--muted); border-radius:999px; padding:6px 13px;
-          cursor:pointer; }
+          background:var(--surface); color:var(--muted); border-radius:999px; padding:6px 13px; cursor:pointer; }
   .chip:hover { border-color:var(--accent); color:var(--accent); }
-
-  .profiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .profiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; }
   @media (max-width:700px){ .profiles { grid-template-columns:1fr; } }
-  .prof { border:1px solid var(--line); border-radius:6px; padding:14px; cursor:pointer;
-          background:var(--surface); text-align:left; display:flex; flex-direction:column; gap:4px;
-          min-height:44px; }
+  .prof { border:1px solid var(--line); border-radius:6px; padding:13px; cursor:pointer;
+          background:var(--surface); text-align:left; display:flex; flex-direction:column;
+          gap:3px; min-height:44px; }
   .prof strong { font-family:Archivo,sans-serif; font-weight:700; font-size:14px; color:var(--ink); }
   .prof small { color:var(--muted); font-size:12.5px; }
   .prof[aria-pressed="true"] { border:2px solid var(--accent); background:var(--accent-soft); }
-
-  button.primary { font-family:Archivo,sans-serif; font-weight:700; font-size:16px;
-    background:var(--accent); color:#fff; border:none; border-radius:6px; padding:15px 24px;
-    cursor:pointer; min-height:52px; display:flex; align-items:center; justify-content:center; gap:9px; width:100%; }
-  button.primary:disabled { opacity:.5; cursor:default; }
-  button.ghost { font-family:Archivo,sans-serif; font-weight:600; font-size:14px;
-    background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:6px;
-    padding:12px 20px; cursor:pointer; min-height:46px; }
-  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-
-  .assure { display:flex; gap:20px; flex-wrap:wrap; color:var(--muted); font-size:13px; margin-top:18px; }
-  .assure div { display:flex; align-items:center; gap:8px; }
-
-  .allocbar { display:flex; height:34px; border-radius:6px; overflow:hidden; }
+  .allocbar { display:flex; height:32px; border-radius:6px; overflow:hidden; }
   .allocbar div { display:flex; align-items:center; justify-content:center; color:#fff;
-                  font-family:Archivo,sans-serif; font-weight:700; font-size:12.5px; white-space:nowrap; }
-  table { border-collapse:collapse; width:100%; font-size:14px; }
-  th { text-align:left; font-family:Archivo,sans-serif; font-size:11px; text-transform:uppercase;
-       letter-spacing:.07em; color:var(--muted); padding:11px 9px; border-bottom:1px solid var(--line);
-       white-space:nowrap; }
-  td { padding:11px 9px; border-bottom:1px solid var(--surface2); white-space:nowrap; }
-  .tablewrap { overflow-x:auto; }
-  .num { text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
-  .pill { display:inline-block; font-family:Archivo,sans-serif; font-weight:700; font-size:10.5px;
-          letter-spacing:.05em; text-transform:uppercase; border-radius:999px; padding:3px 9px; }
-  .pill.core { background:var(--accent-soft); color:var(--accent); }
-  .pill.pick { background:var(--up-soft); color:var(--up); }
-  .notice { border-radius:8px; padding:18px 22px; font-size:14.5px; line-height:1.5; }
-  .notice.warnn { background:var(--warn-soft); color:var(--ink); }
-  .notice.err { background:var(--down-soft); color:var(--down); }
-  .notice .k { display:block; font-family:Archivo,sans-serif; font-weight:700; font-size:11.5px;
-               letter-spacing:.07em; text-transform:uppercase; color:var(--warn); margin-bottom:5px; }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:stretch; }
-  @media (max-width:820px){ .grid2 { grid-template-columns:1fr; } }
-  .stack { display:flex; flex-direction:column; gap:12px; justify-content:center; }
-  .rowline { display:flex; gap:12px; flex-wrap:wrap; }
-  .rowline button { flex:1; }
-  #status { color:var(--muted); font-size:13.5px; margin-top:10px; }
-  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--accent-soft);
-          border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite;
-          vertical-align:-2px; margin-right:7px; }
-  @keyframes sp { to { transform:rotate(360deg); } }
-  @media (prefers-reduced-motion:reduce){ .spin { animation:none; } }
-  footer { max-width:1000px; margin:0 auto; padding:18px 24px 44px; color:var(--muted);
+    font-family:Archivo,sans-serif; font-weight:700; font-size:12px; white-space:nowrap; }
+  footer { max-width:1120px; margin:0 auto; padding:16px 22px 44px; color:var(--muted);
            font-size:12.5px; border-top:1px solid var(--line); }
-  input[type="text"].key { font-family:"IBM Plex Mono",monospace; font-size:13.5px; padding:9px 11px;
-    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); width:210px; }
 </style>
 </head>
 <body>
 <header>
   <div class="hwrap">
     <div class="brand">360° <em>Advisor</em></div>
-    <div class="steps" id="steps">
-      <div class="step on" data-s="1"><div class="dot">1</div><span>Amount</span></div>
-      <div class="bar"></div>
-      <div class="step" data-s="2"><div class="dot">2</div><span>Review plan</span></div>
-      <div class="bar"></div>
-      <div class="step" data-s="3"><div class="dot">3</div><span>Send orders</span></div>
-    </div>
+    <span id="regimeChip">reading market…</span>
+    <span id="asof"></span>
   </div>
+  <nav role="tablist" aria-label="Sections">
+    <button role="tab" aria-selected="true" data-tab="picks">Live picks</button>
+    <button role="tab" aria-selected="false" data-tab="fundamentals">Fundamentals</button>
+    <button role="tab" aria-selected="false" data-tab="castle">Castle in the Air</button>
+    <button role="tab" aria-selected="false" data-tab="fno">F&amp;O</button>
+    <button role="tab" aria-selected="false" data-tab="invest">Invest an amount</button>
+    <button role="tab" aria-selected="false" data-tab="portfolio">Portfolio</button>
+  </nav>
 </header>
 
 <main>
-  <!-- ============ STEP 1 ============ -->
-  <section class="screen active" id="s1">
-    <h1>How much do you want to invest?</h1>
-    <p class="lede">The advisor builds a complete portfolio plan for this amount — what to buy,
-    how much of each, and where every exit price sits. Nothing is bought until you approve it.</p>
-
-    <div class="card" style="display:flex;flex-direction:column;gap:22px">
-      <div>
-        <label class="lbl" for="amount">Investment amount</label>
-        <div class="amt"><span>₹</span><input id="amount" type="text" inputmode="numeric" value="10,00,000"></div>
-        <div class="chips">
-          <button class="chip" data-amt="100000">₹1 L</button>
-          <button class="chip" data-amt="500000">₹5 L</button>
-          <button class="chip" data-amt="1000000">₹10 L</button>
-          <button class="chip" data-amt="2500000">₹25 L</button>
-        </div>
-      </div>
-
-      <div>
-        <span class="lbl">Risk profile</span>
-        <div class="profiles" id="profiles">
-          <button class="prof" data-p="careful" aria-pressed="false">
-            <strong>Careful</strong><small>More index &amp; cash, smaller swings</small></button>
-          <button class="prof" data-p="balanced" aria-pressed="true">
-            <strong>Balanced</strong><small>Core index + selected stocks</small></button>
-          <button class="prof" data-p="ambitious" aria-pressed="false">
-            <strong>Ambitious</strong><small>Larger stock picks, more movement</small></button>
-        </div>
-      </div>
-
-      <button class="primary" id="build">Build my plan
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
-      </button>
-      <div id="status"></div>
-    </div>
-
-    <div class="assure">
-      <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>You approve before anything is bought</div>
-      <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Every stock pick has an exit price</div>
-      <div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15l3-3 2 2 5-5"/></svg>Orders confirm inside your broker app</div>
-    </div>
+  <!-- ===== LIVE PICKS ===== -->
+  <section class="pane active" id="p-picks">
+    <h1>What the advisor likes today</h1>
+    <p class="lede">Every liquid name in the watch universe, scored on trend, momentum and
+    relative strength, then ranked. A pick only becomes a <em>suggestion</em> when a setup
+    fires — otherwise it is context, not a call.</p>
+    <div class="stats" id="regimeStats"></div>
+    <div id="picksNote"></div>
+    <h2>Suggestions — setups firing now</h2>
+    <div class="card tight"><div class="tablewrap"><table>
+      <thead><tr><th>Stock</th><th>Setup</th><th class="num">Price ₹</th><th class="num">Buy zone ₹</th>
+      <th class="num">Stop ₹</th><th class="num">Target 1 ₹</th><th class="num">Target 2 ₹</th>
+      <th class="num">Risk:reward</th><th class="num">Score</th></tr></thead>
+      <tbody id="sugRows"><tr><td colspan="9" class="muted"><span class="spin"></span>Reading the market…</td></tr></tbody>
+    </table></div></div>
+    <h2>Full ranking</h2>
+    <div class="card tight"><div class="tablewrap"><table>
+      <thead><tr><th>Stock</th><th class="num">Price ₹</th><th class="num">Day</th><th>Trend</th>
+      <th class="num">RSI</th><th class="num">From 52w high</th><th class="num">6m move</th>
+      <th class="num">Volatility</th><th class="num">Score</th></tr></thead>
+      <tbody id="rankRows"></tbody>
+    </table></div></div>
   </section>
 
-  <!-- ============ STEP 2 ============ -->
-  <section class="screen" id="s2">
-    <h1 id="planTitle">Your plan</h1>
-    <p class="lede" id="planSub"></p>
+  <!-- ===== FUNDAMENTALS ===== -->
+  <section class="pane" id="p-fundamentals">
+    <h1>Fundamental analysis</h1>
+    <p class="lede">Business quality before price: how the company earns, what it owes, and what
+    you pay for it. Scored the way the doctrine specifies — quality 40, growth 25, valuation 25,
+    balance-sheet safety 10 — with missing data shown as a gap, never assumed good.</p>
+    <div class="rowline" style="margin-bottom:14px">
+      <button class="ghost" id="loadFund">Load fundamentals</button>
+      <span class="muted" id="fundStatus">Fetched on demand — the source is rate-limited.</span>
+    </div>
+    <div class="card tight"><div class="tablewrap"><table>
+      <thead><tr><th>Company</th><th class="num">Score</th><th class="num">P/E</th><th class="num">P/B</th>
+      <th class="num">ROE</th><th class="num">Op margin</th><th class="num">Debt/Equity</th>
+      <th class="num">Rev growth</th><th>Read</th></tr></thead>
+      <tbody id="fundRows"><tr><td colspan="9" class="muted">Press “Load fundamentals”.</td></tr></tbody>
+    </table></div></div>
+    <div id="fundDetail"></div>
+  </section>
 
-    <div class="card" style="margin-bottom:18px">
-      <div class="allocbar" id="allocbar"></div>
-      <div style="display:flex;gap:26px;flex-wrap:wrap;color:var(--muted);font-size:13.5px;margin-top:13px">
-        <span><strong style="color:var(--ink)">Core</strong> — index funds that quietly compound.</span>
-        <span><strong style="color:var(--ink)">Stocks</strong> — today's highest-conviction names.</span>
-        <span><strong style="color:var(--ink)">Cash</strong> — kept ready for corrections.</span>
+  <!-- ===== CASTLE IN THE AIR ===== -->
+  <section class="pane" id="p-castle">
+    <h1>Castle in the Air</h1>
+    <p class="lede">Burton Malkiel's two theories, side by side. <strong>Firm foundation</strong>
+    says a share is worth what the business earns. <strong>Castle in the air</strong> says it is
+    worth what the next buyer will pay — Keynes' beauty contest, where you guess what the crowd
+    will admire. This screen measures both and shows which one is currently holding the price up.</p>
+    <div class="rowline" style="margin-bottom:14px">
+      <button class="ghost" id="loadCastle">Run the analysis</button>
+      <span class="muted" id="castleStatus">Needs fundamentals — loads both together.</span>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="quad" id="quad"></div>
+        <p class="muted" style="margin-top:9px">Horizontal: how much of the price rests on business
+        fundamentals. Vertical: how much rests on crowd enthusiasm — momentum, volume surges,
+        extension above trend. Click a dot for the reading.</p>
+      </div>
+      <div id="castlePanel"><div class="notice info">Run the analysis to populate the map.</div></div>
+    </div>
+    <h2>The greater-fool ledger</h2>
+    <div class="card tight"><div class="tablewrap"><table>
+      <thead><tr><th>Stock</th><th class="num">Firm foundation</th><th class="num">Castle score</th>
+      <th>Standing on</th><th class="num">Stretch above trend</th><th class="num">Crowd fuel</th>
+      <th>What it means</th></tr></thead>
+      <tbody id="castleRows"><tr><td colspan="7" class="muted">Not run yet.</td></tr></tbody>
+    </table></div></div>
+  </section>
+
+  <!-- ===== F&O ===== -->
+  <section class="pane" id="p-fno">
+    <h1>Futures &amp; Options</h1>
+    <p class="lede">Volatility first, direction second, and only structures whose maximum loss is
+    known before you enter. Naked short options and expiry-day gambling are not in this menu —
+    SEBI's own study found more than 90% of retail F&amp;O traders lose money, and undefined risk
+    is how.</p>
+    <div class="rowline" style="margin-bottom:14px">
+      <label class="muted">Underlying
+        <select id="fnoSym">
+          <option value="NIFTY">NIFTY 50</option>
+          <option value="BANKNIFTY">BANK NIFTY</option>
+          <option value="RELIANCE">RELIANCE</option>
+          <option value="HDFCBANK">HDFCBANK</option>
+          <option value="ICICIBANK">ICICIBANK</option>
+          <option value="INFY">INFY</option>
+        </select>
+      </label>
+      <label class="muted">Capital ₹ <input type="number" id="fnoCapital" value="1000000" step="50000" style="width:130px"></label>
+      <button class="ghost" id="loadFno">Analyse</button>
+      <span class="muted" id="fnoStatus"></span>
+    </div>
+    <div class="stats" id="fnoStats"></div>
+    <div id="fnoSuggestion"></div>
+    <div id="fnoChain"></div>
+  </section>
+
+  <!-- ===== INVEST ===== -->
+  <section class="pane" id="p-invest">
+    <div class="steps" id="steps">
+      <div class="step on" data-s="1"><div class="dotn">1</div><span>Amount</span></div>
+      <div class="sbar"></div>
+      <div class="step" data-s="2"><div class="dotn">2</div><span>Review plan</span></div>
+      <div class="sbar"></div>
+      <div class="step" data-s="3"><div class="dotn">3</div><span>Send orders</span></div>
+    </div>
+
+    <div class="screen active" id="i1">
+      <h1>How much do you want to invest?</h1>
+      <p class="lede">The advisor builds a complete portfolio plan for this amount — what to buy,
+      how much of each, and the exit price for every holding. Nothing is bought until you approve it.</p>
+      <div class="card" style="display:flex;flex-direction:column;gap:20px">
+        <div>
+          <label class="lbl" for="amount">Investment amount</label>
+          <div class="amt"><span>₹</span><input id="amount" type="text" inputmode="numeric" value="10,00,000"></div>
+          <div class="chips">
+            <button class="chip" data-amt="100000">₹1 L</button>
+            <button class="chip" data-amt="500000">₹5 L</button>
+            <button class="chip" data-amt="1000000">₹10 L</button>
+            <button class="chip" data-amt="2500000">₹25 L</button>
+          </div>
+        </div>
+        <div>
+          <span class="lbl">Risk profile</span>
+          <div class="profiles" id="profiles">
+            <button class="prof" data-p="careful" aria-pressed="false"><strong>Careful</strong><small>More index &amp; cash, smaller swings</small></button>
+            <button class="prof" data-p="balanced" aria-pressed="true"><strong>Balanced</strong><small>Core index + selected stocks</small></button>
+            <button class="prof" data-p="ambitious" aria-pressed="false"><strong>Ambitious</strong><small>Larger stock picks, more movement</small></button>
+          </div>
+        </div>
+        <button class="primary" id="build">Build my plan</button>
+        <div id="buildStatus" class="muted"></div>
       </div>
     </div>
 
-    <div class="card" style="padding:8px 24px 14px;margin-bottom:18px">
-      <div class="tablewrap"><table>
-        <thead><tr>
-          <th>What you buy</th><th>Role</th><th class="num">Qty</th><th class="num">Price ₹</th>
-          <th class="num">Value ₹</th><th class="num">If it falls, exit at ₹</th>
-        </tr></thead>
+    <div class="screen" id="i2">
+      <h1 id="planTitle">Your plan</h1>
+      <p class="lede" id="planSub"></p>
+      <div class="card" style="margin-bottom:16px">
+        <div class="allocbar" id="allocbar"></div>
+      </div>
+      <div class="card tight" style="margin-bottom:16px"><div class="tablewrap"><table>
+        <thead><tr><th>What you buy</th><th>Role</th><th class="num">Qty</th><th class="num">Price ₹</th>
+        <th class="num">Value ₹</th><th class="num">Exit price ₹</th></tr></thead>
         <tbody id="planRows"></tbody>
-      </table></div>
+      </table></div></div>
+      <div id="planNotes"></div>
+      <div class="grid2" style="margin-top:14px">
+        <div class="notice warnn"><span class="k">Worst normal month</span><span id="badMonth"></span></div>
+        <div style="display:flex;flex-direction:column;gap:10px;justify-content:center">
+          <button class="primary" id="approve">Approve — prepare orders</button>
+          <button class="ghost" id="back1">Change amount or profile</button>
+        </div>
+      </div>
     </div>
 
-    <div id="planNotes"></div>
-
-    <div class="grid2" style="margin-top:18px">
-      <div class="notice warnn">
-        <span class="k">Before you approve — the honest number</span>
-        <span id="badMonth"></span>
+    <div class="screen" id="i3">
+      <h1 id="ordTitle">Send orders to your Demat account</h1>
+      <p class="lede">They open in your broker app as a ready-made basket. You tap confirm there,
+      with your own PIN — the advisor never holds your login and never moves money on its own.</p>
+      <div class="card tight" style="margin-bottom:14px">
+        <p class="muted" id="ordSummary" style="margin:10px 0"></p>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Order</th><th class="num">Qty</th><th class="num">Buy at most ₹</th><th class="num">Value ₹</th></tr></thead>
+          <tbody id="ordRows"></tbody>
+        </table></div>
+        <p class="muted" style="margin-top:11px">All delivery orders — the shares sit in your Demat
+        account. The price shown is a ceiling: the order fills at or below it, or lapses at close.</p>
       </div>
-      <div class="stack">
-        <button class="primary" id="approve">Approve — prepare orders</button>
-        <button class="ghost" id="back1">Change amount or profile</button>
+      <div class="card rowline" style="margin-bottom:12px">
+        <label class="lbl" style="margin:0" for="kitekey">Kite API key</label>
+        <input type="text" id="kitekey" placeholder="from kite.trade (free)" autocomplete="off" style="width:210px">
+        <span class="muted">Stored only in this browser. Without it, use the CSV.</span>
+      </div>
+      <form id="kiteForm" method="POST" action="https://kite.zerodha.com/connect/basket" target="_blank" style="margin-bottom:10px">
+        <input type="hidden" name="api_key" id="fKey"><input type="hidden" name="data" id="fData">
+        <button class="primary" type="submit">Open basket in Kite</button>
+      </form>
+      <div class="rowline">
+        <button class="ghost" id="dlCsv">Download as CSV</button>
+        <button class="ghost" id="back2">Back to the plan</button>
+        <button class="ghost" id="savePf">I placed these — track them</button>
       </div>
     </div>
   </section>
 
-  <!-- ============ STEP 3 ============ -->
-  <section class="screen" id="s3">
-    <h1 id="ordTitle">Send orders to your Demat account</h1>
-    <p class="lede">These orders open in your broker app as a ready-made basket. You confirm there
-    with your own PIN — the advisor never holds your login and never moves money on its own.</p>
-
-    <div class="card" style="padding:0;margin-bottom:18px">
-      <div style="padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:13px;flex-wrap:wrap">
-        <div style="width:34px;height:34px;border-radius:6px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M6 6v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-        </div>
-        <div style="display:flex;flex-direction:column">
-          <strong style="font-family:Archivo,sans-serif;font-size:15px">Basket for Zerodha Kite</strong>
-          <span style="font-size:13px;color:var(--muted)" id="ordSummary"></span>
-        </div>
-      </div>
-      <div style="padding:6px 22px 16px" class="tablewrap"><table>
-        <thead><tr><th>Order</th><th>Type</th><th class="num">Qty</th><th class="num">Limit ₹</th><th class="num">Value ₹</th></tr></thead>
-        <tbody id="ordRows"></tbody>
-      </table></div>
-    </div>
-
-    <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-      <label class="lbl" style="margin:0" for="kitekey">Kite API key</label>
-      <input class="key" id="kitekey" type="text" placeholder="from kite.trade (free)" autocomplete="off">
-      <span style="color:var(--muted);font-size:12.5px">Stored only in this browser. Without it, use the CSV instead.</span>
-    </div>
-
-    <form id="kiteForm" method="POST" action="https://kite.zerodha.com/connect/basket" target="_blank" style="margin-bottom:12px">
-      <input type="hidden" name="api_key" id="fKey">
-      <input type="hidden" name="data" id="fData">
-      <button class="primary" type="submit" id="sendKite">Open basket in Kite
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>
-      </button>
-    </form>
-    <div class="rowline">
-      <button class="ghost" id="dlCsv">Download as CSV</button>
-      <button class="ghost" id="back2">Back to the plan</button>
-    </div>
-
-    <div class="card" style="margin-top:18px;display:flex;gap:13px;align-items:flex-start">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--up)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:3px;flex-shrink:0"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      <span style="font-size:14px">After you confirm in Kite, keep the plan: the full system (in the repository)
-      logs every position and checks your exit prices each evening, and messages you if one is breached.
-      It will never sell for you.</span>
-    </div>
-
-    <p style="color:var(--muted);font-size:12.5px;margin-top:16px">Limit prices sit slightly above the
-    last traded price so orders fill. Prices are end-of-day from a free public feed — confirm live
-    prices in your broker app before placing.</p>
+  <!-- ===== PORTFOLIO ===== -->
+  <section class="pane" id="p-portfolio">
+    <h1>My portfolio</h1>
+    <p class="lede">What you hold, what it is worth now, and the one thing that needs a decision
+    today. Positions are saved in this browser when you mark a plan as placed.</p>
+    <div id="pfBody"></div>
   </section>
 </main>
 
-<footer>Decision-support only, not investment advice. Single-user personal tool.
-The advisor proposes; you decide and place every order yourself.</footer>
+<footer>Decision-support only, not investment advice. Single-user personal tool — the advisor
+proposes, you decide and place every order yourself. Prices are end-of-day from a free public
+feed; confirm live prices in your broker app before acting.</footer>
 
-<script>
-(function () {
-  "use strict";
-
-  var CORE = [
-    { symbol: "NIFTYBEES", desc: "Nifty 50 index fund", share: 0.70 },
-    { symbol: "JUNIORBEES", desc: "Nifty Next 50 index fund", share: 0.30 }
-  ];
-  var UNIVERSE = ["RELIANCE","TCS","HDFCBANK","ICICIBANK","INFY","LT","BHARTIARTL",
-                  "ITC","SBIN","TITAN","SUNPHARMA","AXISBANK","MARUTI","ASIANPAINT",
-                  "BAJFINANCE","HCLTECH","ULTRACEMCO","NESTLEIND"];
-  var PROFILES = {
-    careful:   { mix:[0.70,0.15,0.15], maxPos:0.05, stopMult:2.5, names:4 },
-    balanced:  { mix:[0.60,0.30,0.10], maxPos:0.08, stopMult:2.0, names:5 },
-    ambitious: { mix:[0.50,0.40,0.10], maxPos:0.12, stopMult:2.0, names:6 }
-  };
-  var LIMIT_BUFFER = 0.002;
-
-  var state = { amount: 1000000, profile: "balanced", plan: null };
-
-  function inr(n, d) {
-    return "₹" + Number(n).toLocaleString("en-IN",
-      { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: d == null ? 0 : d });
-  }
-  function num(n, d) {
-    return Number(n).toLocaleString("en-IN",
-      { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: d == null ? 0 : d });
-  }
-  function parseAmt(s) { return parseInt(String(s).replace(/[^0-9]/g, ""), 10) || 0; }
-
-  /* ---- step navigation ---- */
-  function goto(n) {
-    ["s1","s2","s3"].forEach(function (id, i) {
-      document.getElementById(id).classList.toggle("active", i + 1 === n);
-    });
-    var steps = document.querySelectorAll("#steps .step");
-    var bars = document.querySelectorAll("#steps .bar");
-    steps.forEach(function (el, i) {
-      el.classList.toggle("on", i + 1 === n);
-      el.classList.toggle("done", i + 1 < n);
-      el.querySelector(".dot").innerHTML = (i + 1 < n)
-        ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
-        : String(i + 1);
-    });
-    bars.forEach(function (b, i) { b.classList.toggle("done", i + 1 < n); });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  /* ---- step 1 inputs ---- */
-  var amtInput = document.getElementById("amount");
-  amtInput.addEventListener("input", function () {
-    var v = parseAmt(amtInput.value);
-    state.amount = v;
-    amtInput.value = v ? v.toLocaleString("en-IN") : "";
-  });
-  document.querySelectorAll(".chip").forEach(function (c) {
-    c.addEventListener("click", function () {
-      state.amount = +c.dataset.amt;
-      amtInput.value = state.amount.toLocaleString("en-IN");
-    });
-  });
-  document.querySelectorAll(".prof").forEach(function (p) {
-    p.addEventListener("click", function () {
-      document.querySelectorAll(".prof").forEach(function (x) { x.setAttribute("aria-pressed","false"); });
-      p.setAttribute("aria-pressed","true");
-      state.profile = p.dataset.p;
-    });
-  });
-
-  /* ---- the planner (port of planner.py) ---- */
-  function fetchQuotes(symbols) {
-    return fetch("/api/quotes?symbols=" + encodeURIComponent(symbols.join(",")))
-      .then(function (r) { if (!r.ok) throw new Error("data service " + r.status); return r.json(); })
-      .then(function (d) {
-        var map = {};
-        (d.quotes || []).forEach(function (q) { if (!q.error) map[q.symbol] = q; });
-        return map;
-      });
-  }
-
-  function stage(q) {
-    if (q.sma200 == null) return 1;
-    if (q.last > q.sma200 && q.sma200Rising && q.sma50 != null && q.last > q.sma50) return 2;
-    if (q.last < q.sma200 && !q.sma200Rising) return 4;
-    return q.sma200Rising ? 1 : 3;
-  }
-
-  function buildPlan() {
-    var cfg = PROFILES[state.profile];
-    var amount = state.amount;
-    var status = document.getElementById("status");
-    if (amount < 25000) {
-      status.innerHTML = '<span style="color:var(--down)">Minimum ₹25,000 — below that, ' +
-        'brokerage and lot sizes eat the diversification.</span>';
-      return;
-    }
-    status.innerHTML = '<span class="spin"></span>Reading today\'s market…';
-    document.getElementById("build").disabled = true;
-
-    var symbols = CORE.map(function (c) { return c.symbol; }).concat(UNIVERSE).concat(["^NSEI"]);
-    fetchQuotes(symbols).then(function (q) {
-      var nifty = q["^NSEI"];
-      var riskOn = nifty && nifty.sma200 != null ? nifty.last > nifty.sma200 : true;
-      var mix = cfg.mix.slice();
-      var notes = [];
-      if (!riskOn) {
-        notes.push("The market is below its long-term average, so the stock sleeve stays in cash " +
-                   "and only the index core is bought. This is the playbook, not a forecast.");
-        mix = [Math.min(mix[0], 0.60), 0, 1 - Math.min(mix[0], 0.60)];
-      }
-
-      var lines = [];
-      var coreAmt = amount * mix[0];
-      CORE.forEach(function (c) {
-        var quote = q[c.symbol];
-        if (!quote) { notes.push("No live price for " + c.symbol + " — it was left out."); return; }
-        var qty = Math.floor(coreAmt * c.share / quote.last);
-        if (qty > 0) lines.push({ symbol:c.symbol, role:"core", desc:c.desc, qty:qty,
-                                  price:quote.last, value:qty*quote.last, stop:null, risk:0 });
-      });
-
-      if (mix[1] > 0) {
-        var eligible = UNIVERSE.map(function (s) { return q[s]; })
-          .filter(Boolean)
-          .filter(function (x) { return stage(x) === 2; })
-          .map(function (x) {
-            var score = (x.mom6m || 0) * 100 + (x.high52 ? (x.last / x.high52) * 20 : 0);
-            return { q: x, score: score };
-          })
-          .sort(function (a, b) { return b.score - a.score; })
-          .slice(0, cfg.names);
-
-        if (eligible.length) {
-          var perName = Math.min(amount * mix[1] / eligible.length, amount * cfg.maxPos);
-          eligible.forEach(function (e) {
-            var x = e.q;
-            var stop = Math.max(x.swingLow20, x.last - cfg.stopMult * x.atr14);
-            if (stop >= x.last) stop = x.last - cfg.stopMult * x.atr14;
-            var qty = Math.floor(perName / x.last);
-            if (qty <= 0) return;
-            var price = Math.round(x.last * 100) / 100, st = Math.round(stop * 100) / 100;
-            lines.push({ symbol:x.symbol, role:"satellite", desc:"in an uptrend, leading the market",
-                         qty:qty, price:price, value:qty*price, stop:st, risk:qty*(price-st) });
-          });
-          if (eligible.length < cfg.names) {
-            notes.push("Only " + eligible.length + " stock(s) passed the trend filter, so each gets " +
-                       "a larger share (capped by the profile limit) and the rest stays in cash.");
-          }
-        } else {
-          notes.push("No stock passed the trend filter today, so that sleeve stays in cash. " +
-                     "A forced trade is worse than no trade.");
-        }
-      }
-
-      var invested = lines.reduce(function (s, l) { return s + l.value; }, 0);
-      var coreVal = lines.filter(function (l) { return l.role === "core"; })
-                         .reduce(function (s, l) { return s + l.value; }, 0);
-      var satBad = lines.filter(function (l) { return l.role === "satellite"; })
-                        .reduce(function (s, l) { return s + Math.max(l.risk, l.value * 0.09); }, 0);
-      state.plan = {
-        amount: amount, profile: state.profile, lines: lines, notes: notes,
-        invested: invested, cash: amount - invested,
-        totalRisk: lines.reduce(function (s, l) { return s + l.risk; }, 0),
-        badMonth: coreVal * 0.07 + satBad, mix: mix, riskOn: riskOn
-      };
-      renderPlan();
-      status.innerHTML = "";
-      document.getElementById("build").disabled = false;
-      goto(2);
-    }).catch(function (e) {
-      status.innerHTML = '<span style="color:var(--down)">Could not reach the market data service (' +
-        e.message + '). Try again in a moment.</span>';
-      document.getElementById("build").disabled = false;
-    });
-  }
-
-  document.getElementById("build").addEventListener("click", buildPlan);
-
-  /* ---- step 2 render ---- */
-  function renderPlan() {
-    var p = state.plan;
-    document.getElementById("planTitle").textContent = "Your plan for " + inr(p.amount);
-    document.getElementById("planSub").textContent =
-      p.profile.charAt(0).toUpperCase() + p.profile.slice(1) +
-      " profile · " + (p.riskOn ? "market conditions normal" : "market below its long-term average");
-
-    var cashPct = Math.max(0, 1 - p.mix[0] - p.mix[1]);
-    document.getElementById("allocbar").innerHTML =
-      '<div style="width:' + (p.mix[0]*100) + '%;background:var(--accent)">CORE ' + Math.round(p.mix[0]*100) + '%</div>' +
-      (p.mix[1] > 0 ? '<div style="width:' + (p.mix[1]*100) + '%;background:var(--up)">STOCKS ' + Math.round(p.mix[1]*100) + '%</div>' : '') +
-      '<div style="width:' + (cashPct*100) + '%;background:var(--surface2);color:var(--muted)">CASH ' + Math.round(cashPct*100) + '%</div>';
-
-    document.getElementById("planRows").innerHTML = p.lines.map(function (l) {
-      return "<tr><td><strong style='font-family:Archivo,sans-serif'>" + l.symbol + "</strong>" +
-        "<div style='color:var(--muted);font-size:12.5px'>" + l.desc + "</div></td>" +
-        "<td><span class='pill " + (l.role === "core" ? "core'>Core" : "pick'>Stock pick") + "</span></td>" +
-        "<td class='num'>" + num(l.qty) + "</td>" +
-        "<td class='num'>" + num(l.price, 2) + "</td>" +
-        "<td class='num'>" + num(l.value) + "</td>" +
-        "<td class='num' style='color:" + (l.stop ? "var(--down)" : "var(--muted)") + "'>" +
-        (l.stop ? num(l.stop, 2) : "hold") + "</td></tr>";
-    }).join("");
-
-    document.getElementById("planNotes").innerHTML = p.notes.map(function (n) {
-      return '<div class="notice warnn" style="margin-bottom:10px">' + n + "</div>";
-    }).join("");
-
-    document.getElementById("badMonth").innerHTML =
-      "In a normal bad month this plan could be down about <strong class='mono'>" +
-      inr(p.badMonth) + "</strong> (" + (100 * p.badMonth / p.amount).toFixed(1) +
-      "%). If that number would make you sell everything, choose the Careful profile instead." +
-      " Invested " + inr(p.invested) + " · cash left " + inr(p.cash) + ".";
-  }
-
-  document.getElementById("back1").addEventListener("click", function () { goto(1); });
-  document.getElementById("back2").addEventListener("click", function () { goto(2); });
-  document.getElementById("approve").addEventListener("click", function () {
-    renderOrders(); goto(3);
-  });
-
-  /* ---- step 3: orders ---- */
-  function orders() {
-    return state.plan.lines.filter(function (l) { return l.qty > 0; }).map(function (l) {
-      return { variety:"regular", tradingsymbol:l.symbol, exchange:"NSE",
-               transaction_type:"BUY", order_type:"LIMIT", quantity:l.qty,
-               product:"CNC", readonly:false,
-               price: Math.round(l.price * (1 + LIMIT_BUFFER) * 10) / 10 };
-    });
-  }
-
-  function renderOrders() {
-    var os = orders();
-    var total = os.reduce(function (s, o) { return s + o.quantity * o.price; }, 0);
-    document.getElementById("ordTitle").textContent =
-      "Send " + os.length + " orders to your Demat account";
-    document.getElementById("ordSummary").textContent =
-      os.length + " buy orders · about " + inr(total) + " · cash left " + inr(state.plan.cash);
-    document.getElementById("ordRows").innerHTML = os.map(function (o) {
-      return "<tr><td><strong style='font-family:Archivo,sans-serif;color:var(--up)'>BUY</strong> " +
-        "<strong style='font-family:Archivo,sans-serif'>" + o.tradingsymbol + "</strong></td>" +
-        "<td style='color:var(--muted)'>Limit · CNC</td>" +
-        "<td class='num'>" + num(o.quantity) + "</td>" +
-        "<td class='num'>" + num(o.price, 2) + "</td>" +
-        "<td class='num'>" + num(o.quantity * o.price) + "</td></tr>";
-    }).join("");
-    document.getElementById("fData").value = JSON.stringify(os);
-    document.getElementById("fKey").value = document.getElementById("kitekey").value.trim();
-  }
-
-  var keyInput = document.getElementById("kitekey");
-  try { keyInput.value = localStorage.getItem("kiteApiKey") || ""; } catch (e) {}
-  keyInput.addEventListener("input", function () {
-    try { localStorage.setItem("kiteApiKey", keyInput.value.trim()); } catch (e) {}
-    document.getElementById("fKey").value = keyInput.value.trim();
-  });
-
-  document.getElementById("kiteForm").addEventListener("submit", function (ev) {
-    var k = keyInput.value.trim();
-    document.getElementById("fKey").value = k;
-    document.getElementById("fData").value = JSON.stringify(orders());
-    if (!k) {
-      ev.preventDefault();
-      alert("Add your Kite API key first (free at kite.trade), or use Download as CSV " +
-            "and import the orders into any broker's order pad.");
-    }
-  });
-
-  document.getElementById("dlCsv").addEventListener("click", function () {
-    var rows = [["Exchange","Symbol","Transaction","Quantity","OrderType","Price","Product"]];
-    orders().forEach(function (o) {
-      rows.push([o.exchange, o.tradingsymbol, o.transaction_type, o.quantity,
-                 o.order_type, o.price, o.product]);
-    });
-    var csv = rows.map(function (r) { return r.join(","); }).join("\n");
-    var blob = new Blob([csv], { type: "text/csv" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "advisor-orders.csv";
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  });
-})();
-</script>
+<script src="./app.js"></script>
 </body>
 </html>
