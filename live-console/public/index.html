@@ -4,463 +4,280 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>360° Advisor</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
+  /* Restrained institutional: a serious face for headings, a clear one for
+     reading, monospace wherever digits must line up. Colour carries meaning —
+     red is risk, green is gain — and is used nowhere decorative. */
   :root {
-    --bg:#F6F7F3; --surface:#FFFFFF; --surface2:#EEF0EA; --ink:#1D2420;
-    --muted:#5D675F; --line:#D8DCD3; --accent:#A8761F; --accent-soft:#F3E8D2;
-    --up:#1E7D4F; --up-soft:#DFEEE5; --down:#B0372D; --down-soft:#F4E0DD;
-    --warn:#8A6A12; --warn-soft:#F2EAD0; --sky:#2F6D8C; --sky-soft:#DEEAF0;
+    --bg:#F7F7F4; --surface:#FFFFFF; --sunk:#EFEFEA; --line:#DEDDD6;
+    --line-strong:#C8C7BE;
+    --ink:#1A1A17; --ink-2:#43433D; --muted:#6E6E65;
+    --accent:#8A6A1F; --accent-soft:#F2EAD7;
+    --up:#1D6B48; --up-soft:#E0EDE6; --down:#A32E22; --down-soft:#F5E2DF;
+    --warn:#8A6A12; --warn-soft:#F5EDD9; --info:#2C5C74; --info-soft:#E2ECF1;
+    --shadow:0 1px 2px rgba(26,26,23,.05), 0 4px 14px rgba(26,26,23,.04);
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:#121714; --surface:#1A211C; --surface2:#222B25; --ink:#E8EAE3;
-      --muted:#9AA69C; --line:#313B33; --accent:#D9A441; --accent-soft:#33290F;
-      --up:#4CAF7D; --up-soft:#16301F; --down:#E07A6B; --down-soft:#38201C;
-      --warn:#D9B34A; --warn-soft:#322A10; --sky:#7FB4CC; --sky-soft:#17262D;
+    :root:not([data-theme="light"]) {
+      --bg:#14140F; --surface:#1C1C17; --sunk:#232320; --line:#32322C;
+      --line-strong:#45453D;
+      --ink:#EDEDE6; --ink-2:#C7C7BE; --muted:#94948B;
+      --accent:#D6AC55; --accent-soft:#2E2614;
+      --up:#5FB98A; --up-soft:#16291F; --down:#DE7A6C; --down-soft:#301B18;
+      --warn:#D3AE55; --warn-soft:#2B2413; --info:#7FB0C8; --info-soft:#16242B;
+      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
     }
   }
+  :root[data-theme="dark"] {
+    --bg:#14140F; --surface:#1C1C17; --sunk:#232320; --line:#32322C;
+    --line-strong:#45453D;
+    --ink:#EDEDE6; --ink-2:#C7C7BE; --muted:#94948B;
+    --accent:#D6AC55; --accent-soft:#2E2614;
+    --up:#5FB98A; --up-soft:#16291F; --down:#DE7A6C; --down-soft:#301B18;
+    --warn:#D3AE55; --warn-soft:#2B2413; --info:#7FB0C8; --info-soft:#16242B;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+  }
+
   * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
   body { margin:0; background:var(--bg); color:var(--ink);
-         font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px; line-height:1.55; }
-  .mono { font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+         font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px;
+         line-height:1.55; font-feature-settings:"kern"; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace;
+          font-variant-numeric:tabular-nums; }
+  h1,h2,h3 { font-family:Fraunces,Georgia,serif; font-weight:600;
+             letter-spacing:-0.01em; margin:0; text-wrap:balance; }
+  h1 { font-size:30px; line-height:1.2; }
+  h2 { font-size:19px; margin:0 0 12px; }
+  h3 { font-size:15px; }
+  p { margin:0 0 12px; }
+  a { color:var(--accent); text-underline-offset:2px; }
+  a:hover { color:var(--ink); }
 
+  /* ---- chrome ---- */
   header { background:var(--surface); border-bottom:1px solid var(--line);
-           position:sticky; top:0; z-index:30; }
-  .hwrap { max-width:1120px; margin:0 auto; padding:13px 22px 0;
-           display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
-  .brand { font-family:Archivo,sans-serif; font-weight:800; font-size:17px; letter-spacing:-0.01em; }
-  .brand em { color:var(--accent); font-style:normal; }
-  #regimeChip { font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
-    letter-spacing:.06em; text-transform:uppercase; padding:4px 11px; border-radius:999px;
-    background:var(--surface2); color:var(--muted); }
-  #asof { margin-left:auto; color:var(--muted); font-size:12.5px; }
-  nav { max-width:1120px; margin:0 auto; padding:0 22px; display:flex; gap:2px;
-        overflow-x:auto; }
-  nav button { font-family:Archivo,sans-serif; font-weight:600; font-size:13px;
-    background:none; border:none; color:var(--muted); padding:11px 13px 12px;
-    cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; }
-  nav button[aria-selected="true"] { color:var(--ink); border-bottom-color:var(--accent); }
-  nav button:focus-visible, button:focus-visible, input:focus-visible,
-  select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+           position:sticky; top:0; z-index:40; }
+  .hwrap { max-width:1180px; margin:0 auto; padding:14px 26px;
+           display:flex; align-items:center; gap:22px; }
+  .brand { font-family:Fraunces,Georgia,serif; font-weight:700; font-size:17px;
+           letter-spacing:-0.01em; cursor:pointer; white-space:nowrap; }
+  .brand em { font-style:normal; color:var(--accent); }
+  nav { display:flex; gap:3px; }
+  nav button { font-family:inherit; font-weight:500; font-size:14px;
+    background:none; border:none; color:var(--muted); padding:7px 13px;
+    border-radius:6px; cursor:pointer; }
+  nav button:hover { color:var(--ink); background:var(--sunk); }
+  nav button[aria-current="page"] { color:var(--ink); background:var(--sunk);
+    font-weight:600; }
+  .search { margin-left:auto; display:flex; align-items:center; gap:9px; }
+  .search input { font-family:"IBM Plex Mono",monospace; font-size:13.5px;
+    padding:8px 12px; border:1px solid var(--line); border-radius:7px;
+    background:var(--bg); color:var(--ink); width:190px; }
+  .search input:focus { outline:2px solid var(--accent); outline-offset:1px;
+    border-color:transparent; }
+  #regime { font-size:12.5px; color:var(--muted); white-space:nowrap; }
+  #regime b { color:var(--ink); font-weight:600; }
 
-  main { max-width:1120px; margin:0 auto; padding:26px 22px 70px; }
-  section.pane { display:none; }
-  section.pane.active { display:block; }
-  h1 { font-family:Archivo,sans-serif; font-weight:800; font-size:26px;
-       letter-spacing:-0.02em; margin:0 0 6px; text-wrap:balance; }
-  h2 { font-family:Archivo,sans-serif; font-weight:700; font-size:16px; margin:24px 0 10px; }
-  .lede { color:var(--muted); margin:0 0 20px; max-width:66ch; }
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:20px; }
-  .card.tight { padding:6px 20px 14px; }
-  .lbl { font-family:Archivo,sans-serif; font-weight:700; font-size:11px; letter-spacing:.07em;
-         text-transform:uppercase; color:var(--muted); display:block; margin-bottom:7px; }
+  main { max-width:1180px; margin:0 auto; padding:30px 26px 90px; }
+  .screen { display:none; }
+  .screen.on { display:block; }
+  .lede { color:var(--muted); max-width:64ch; margin:6px 0 26px; font-size:15.5px; }
 
-  table { border-collapse:collapse; width:100%; font-size:13.5px; }
-  th { text-align:left; font-family:Archivo,sans-serif; font-size:10.5px; text-transform:uppercase;
-       letter-spacing:.07em; color:var(--muted); padding:10px 9px;
-       border-bottom:1px solid var(--line); white-space:nowrap; }
-  td { padding:10px 9px; border-bottom:1px solid var(--surface2); white-space:nowrap; }
-  .tablewrap { overflow-x:auto; }
-  .num { text-align:right; font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
-  tr.click { cursor:pointer; }
-  tr.click:hover td { background:var(--surface2); }
-  .sym { font-family:Archivo,sans-serif; font-weight:700; }
+  /* ---- surfaces ---- */
+  .card { background:var(--surface); border:1px solid var(--line);
+          border-radius:10px; padding:22px; box-shadow:var(--shadow); }
+  .card + .card { margin-top:16px; }
+  .card.flush { padding:8px 22px 16px; }
+  .grid { display:grid; gap:16px; }
+  .g2 { grid-template-columns:1fr 1fr; }
+  .g3 { grid-template-columns:repeat(3,1fr); }
+  .g4 { grid-template-columns:repeat(4,1fr); }
+  @media (max-width:900px){ .g2,.g3,.g4 { grid-template-columns:1fr; } }
+  .sectionhead { display:flex; align-items:baseline; gap:12px; margin:34px 0 12px; }
+  .sectionhead h2 { margin:0; }
+  .sectionhead .note { color:var(--muted); font-size:13px; }
+
+  /* ---- the loud alert: reserved for a breached exit price ---- */
+  .alarm { border:2px solid var(--down); background:var(--down-soft);
+    border-radius:10px; padding:22px 24px; margin-bottom:16px;
+    display:flex; gap:18px; align-items:flex-start; }
+  .alarm .mark { width:40px; height:40px; border-radius:50%; background:var(--down);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; font-family:Fraunces,serif; font-size:22px; font-weight:700; }
+  .alarm h2 { color:var(--down); font-size:21px; margin:0 0 4px; }
+  .alarm .body { flex:1; }
+  .alarm .act { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+  .notice { border-radius:9px; padding:15px 18px; font-size:14.5px; line-height:1.55;
+            margin:14px 0; border:1px solid transparent; }
+  .notice.warn { background:var(--warn-soft); border-color:var(--warn); color:var(--ink); }
+  .notice.info { background:var(--info-soft); border-color:var(--line); color:var(--ink-2); }
+  .notice.calm { background:var(--sunk); color:var(--muted); }
+  .notice .k { display:block; font-size:11.5px; font-weight:600; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+
+  /* ---- numbers ---- */
+  .stat { display:flex; flex-direction:column; gap:3px; }
+  .stat .k { font-size:11.5px; font-weight:600; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--muted); }
+  .stat .v { font-family:"IBM Plex Mono",monospace; font-size:25px; font-weight:500;
+    font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }
+  .stat .s { font-size:13px; color:var(--muted); }
+  .stat.good .v { color:var(--up); } .stat.bad .v { color:var(--down); }
   .pos { color:var(--up); } .neg { color:var(--down); }
 
-  .pill { display:inline-block; font-family:Archivo,sans-serif; font-weight:700; font-size:10.5px;
-          letter-spacing:.05em; text-transform:uppercase; border-radius:999px; padding:3px 9px; }
-  .pill.up{background:var(--up-soft);color:var(--up)} .pill.down{background:var(--down-soft);color:var(--down)}
-  .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.acc{background:var(--accent-soft);color:var(--accent)}
-  .pill.sky{background:var(--sky-soft);color:var(--sky)} .pill.mut{background:var(--surface2);color:var(--muted)}
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th { text-align:left; font-size:11.5px; font-weight:600; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--muted); padding:11px 10px;
+    border-bottom:1px solid var(--line-strong); white-space:nowrap; }
+  td { padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tbody tr:last-child td { border-bottom:none; }
+  .num { text-align:right; font-family:"IBM Plex Mono",monospace;
+         font-variant-numeric:tabular-nums; white-space:nowrap; }
+  tr.go { cursor:pointer; }
+  tr.go:hover td { background:var(--sunk); }
+  .sym { font-weight:600; }
+  .sub { color:var(--muted); font-size:12.5px; }
 
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
-  .stat { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--accent);
-          border-radius:8px; padding:15px 17px; display:flex; flex-direction:column; gap:4px; }
-  .stat .k { font-family:Archivo,sans-serif; font-weight:700; font-size:10.5px;
-             letter-spacing:.07em; text-transform:uppercase; color:var(--muted); }
-  .stat .v { font-family:"IBM Plex Mono",monospace; font-size:23px; font-weight:600;
-             font-variant-numeric:tabular-nums; }
-  .stat .s { font-size:12.5px; color:var(--muted); }
-  .stat.good{border-left-color:var(--up)} .stat.bad{border-left-color:var(--down)}
-  .stat.warnb{border-left-color:var(--warn)}
+  .pill { display:inline-block; font-size:11px; font-weight:600; letter-spacing:.05em;
+    text-transform:uppercase; border-radius:999px; padding:4px 10px; }
+  .pill.up{background:var(--up-soft);color:var(--up)}
+  .pill.down{background:var(--down-soft);color:var(--down)}
+  .pill.warn{background:var(--warn-soft);color:var(--warn)}
+  .pill.info{background:var(--info-soft);color:var(--info)}
+  .pill.mut{background:var(--sunk);color:var(--muted)}
+  .pill.acc{background:var(--accent-soft);color:var(--accent)}
 
-  .notice { border-radius:8px; padding:14px 18px; font-size:14px; line-height:1.5; margin:12px 0; }
-  .notice.warnn { background:var(--warn-soft); color:var(--ink); }
-  .notice.err { background:var(--down-soft); color:var(--down); }
-  .notice.info { background:var(--surface2); color:var(--muted); }
-  .notice .k { display:block; font-family:Archivo,sans-serif; font-weight:700; font-size:11px;
-               letter-spacing:.07em; text-transform:uppercase; color:var(--warn); margin-bottom:4px; }
+  button.primary { font-family:inherit; font-weight:600; font-size:15px;
+    background:var(--ink); color:var(--bg); border:none; border-radius:7px;
+    padding:13px 22px; cursor:pointer; min-height:46px; }
+  button.primary:hover { opacity:.9; }
+  button.danger { background:var(--down); color:#fff; }
+  button.ghost { font-family:inherit; font-weight:500; font-size:14px;
+    background:var(--surface); color:var(--ink); border:1px solid var(--line-strong);
+    border-radius:7px; padding:11px 17px; cursor:pointer; min-height:42px; }
+  button.ghost:hover { border-color:var(--ink); }
+  button:focus-visible, input:focus-visible, select:focus-visible,
+  summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 
-  button.primary { font-family:Archivo,sans-serif; font-weight:700; font-size:15px;
-    background:var(--accent); color:#fff; border:none; border-radius:6px; padding:14px 22px;
-    cursor:pointer; min-height:50px; display:flex; align-items:center; justify-content:center;
-    gap:9px; width:100%; }
-  button.primary:disabled { opacity:.5; cursor:default; }
-  button.ghost { font-family:Archivo,sans-serif; font-weight:600; font-size:13.5px;
-    background:var(--surface); color:var(--ink); border:1px solid var(--line);
-    border-radius:6px; padding:11px 18px; cursor:pointer; min-height:44px; }
-  input[type="text"], input[type="number"], select {
-    font-family:"IBM Plex Mono",monospace; font-size:13.5px; padding:9px 11px;
-    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink); }
-  .rowline { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  .spin { display:inline-block; width:13px; height:13px; border:2px solid var(--accent-soft);
-          border-top-color:var(--accent); border-radius:50%; animation:sp .8s linear infinite;
-          vertical-align:-2px; margin-right:7px; }
+  /* ---- the reasoning: the thing this app is built around ---- */
+  details.why { border-top:1px solid var(--line); margin-top:14px; padding-top:12px; }
+  details.why > summary { cursor:pointer; font-size:13px; font-weight:600;
+    color:var(--muted); list-style:none; display:flex; align-items:center; gap:7px; }
+  details.why > summary::-webkit-details-marker { display:none; }
+  details.why > summary::before { content:"▸"; font-size:11px; transition:transform .15s; }
+  details.why[open] > summary::before { transform:rotate(90deg); }
+  details.why > summary:hover { color:var(--ink); }
+  ol.chain { margin:14px 0 0; padding:0; list-style:none;
+             border-left:2px solid var(--line-strong); }
+  ol.chain li { position:relative; padding:0 0 16px 20px; font-size:14px; }
+  ol.chain li:last-child { padding-bottom:2px; }
+  ol.chain li::before { content:""; position:absolute; left:-5px; top:7px;
+    width:8px; height:8px; border-radius:50%; background:var(--line-strong);
+    border:2px solid var(--surface); }
+  ol.chain li.key::before { background:var(--accent); }
+  ol.chain .stage { font-size:11.5px; font-weight:600; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--muted); display:block; margin-bottom:2px; }
+  ol.chain .finding { color:var(--ink-2); }
+  @media (prefers-reduced-motion:reduce){ details.why > summary::before{transition:none} }
+
+  /* ---- charts ---- */
+  .chartwrap { width:100%; }
+  .chart-empty { display:flex; align-items:center; justify-content:center;
+    background:var(--sunk); border-radius:8px; color:var(--muted); font-size:13.5px;
+    text-align:center; padding:0 20px; }
+  .gridline { stroke:var(--line); stroke-width:1; }
+  .gridline-zero { stroke:var(--line-strong); stroke-width:1; }
+  .axis { fill:var(--muted); font-size:11px;
+          font-family:"IBM Plex Mono",monospace; }
+  .series-price { stroke:var(--ink); stroke-width:1.6; }
+  .series-avg { stroke:var(--muted); stroke-width:1.1; stroke-dasharray:4 3; }
+  .series-area { fill:var(--accent); opacity:.07; }
+  .series-last { fill:var(--ink); stroke:var(--surface); stroke-width:2; }
+  .ref-exit { stroke:var(--down); stroke-width:1.2; stroke-dasharray:5 3; }
+  .ref-entry { stroke:var(--info); stroke-width:1.2; stroke-dasharray:5 3; }
+  .ref-label { font-size:10.5px; font-family:"IBM Plex Mono",monospace; }
+  text.ref-exit { fill:var(--down); stroke:none; }
+  text.ref-entry { fill:var(--info); stroke:none; }
+  .bar { fill:var(--accent); } .bar-2 { fill:var(--up); } .bar-3 { fill:var(--info); }
+  .band-a { fill:var(--accent); opacity:.75; }
+  .band-b { fill:var(--info); opacity:.7; }
+  .band-c { fill:var(--up); opacity:.65; }
+  .band-d { fill:var(--muted); opacity:.35; }
+  .band-track { fill:var(--sunk); }
+  .band-fair { fill:var(--up); opacity:.28; }
+  .band-base { stroke:var(--up); stroke-width:2; }
+  .band-price { fill:var(--ink); stroke:var(--surface); stroke-width:2.5; }
+  .band-label { fill:var(--muted); font-size:11px;
+    font-family:"IBM Plex Mono",monospace; }
+  text.band-label.price { fill:var(--ink); font-weight:500; }
+  .spark-line { stroke:var(--ink-2); stroke-width:1.3; }
+  .spark-last { fill:var(--accent); }
+  .chart-legend { display:flex; gap:16px; align-items:center; margin-top:9px;
+    font-size:12.5px; color:var(--muted); flex-wrap:wrap; }
+  .swatch { display:inline-block; width:9px; height:9px; border-radius:2px;
+    margin-right:6px; vertical-align:baseline; }
+  i.swatch.bar{background:var(--accent)} i.swatch.bar-2{background:var(--up)}
+  i.swatch.bar-3{background:var(--info)}
+  i.swatch.band-a{background:var(--accent)} i.swatch.band-b{background:var(--info)}
+  i.swatch.band-c{background:var(--up)} i.swatch.band-d{background:var(--muted)}
+  .chart-foot { display:flex; justify-content:space-between; color:var(--muted);
+    font-size:11.5px; font-family:"IBM Plex Mono",monospace; margin-top:5px; }
+
+  /* ---- gaps, shown in place ---- */
+  .gap { background:var(--sunk); border:1px dashed var(--line-strong);
+    border-radius:8px; padding:15px 18px; color:var(--muted); font-size:13.5px; }
+  .gap b { color:var(--ink-2); font-weight:600; }
+
+  .muted { color:var(--muted); font-size:13px; }
+  .spin { display:inline-block; width:13px; height:13px;
+    border:2px solid var(--line); border-top-color:var(--accent);
+    border-radius:50%; animation:sp .8s linear infinite; vertical-align:-2px;
+    margin-right:8px; }
   @keyframes sp { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion:reduce){ .spin{animation:none} }
-  .muted { color:var(--muted); font-size:12.5px; }
-
-  /* score bars */
-  .bar { display:flex; align-items:center; gap:9px; margin-bottom:6px; font-size:12.5px; }
-  .bar .bl { flex:0 0 128px; color:var(--muted); }
-  .track { flex:1; height:7px; background:var(--surface2); border-radius:4px; overflow:hidden; min-width:70px; }
-  .fill { height:100%; border-radius:4px; background:var(--accent); }
-  .bar .bv { flex:0 0 40px; text-align:right; font-family:"IBM Plex Mono",monospace; }
-
-  /* castle quadrant */
-  .quad { position:relative; width:100%; aspect-ratio:1/0.72; background:var(--surface);
-          border:1px solid var(--line); border-radius:8px; overflow:hidden; }
-  .quad .qc { position:absolute; inset:0; }
-  .quad .qlabel { position:absolute; font-family:Archivo,sans-serif; font-weight:700;
-                  font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
-                  color:var(--muted); opacity:.85; }
-  .dot { position:absolute; width:11px; height:11px; border-radius:50%; background:var(--accent);
-         transform:translate(-50%,-50%); border:2px solid var(--surface); cursor:pointer; }
-  .dot span { position:absolute; left:13px; top:-4px; font-family:Archivo,sans-serif;
-              font-weight:700; font-size:10.5px; color:var(--ink); white-space:nowrap; }
-
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-  @media (max-width:860px){ .grid2 { grid-template-columns:1fr; } }
-  .steps { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:20px; }
-  .step { display:flex; align-items:center; gap:7px; opacity:.42; }
-  .step.on { opacity:1; } .step.done { opacity:.6; }
-  .dotn { width:24px; height:24px; border-radius:999px; border:2px solid var(--muted);
-          color:var(--muted); display:flex; align-items:center; justify-content:center;
-          font-family:Archivo,sans-serif; font-weight:700; font-size:12px; }
-  .step.on .dotn { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .step.done .dotn { background:var(--up); border-color:var(--up); color:#fff; }
-  .step span { font-family:Archivo,sans-serif; font-weight:700; font-size:12.5px; }
-  .sbar { width:30px; height:2px; background:var(--line); }
-  .sbar.done { background:var(--up); }
-  .screen { display:none; } .screen.active { display:block; }
-  .amt { display:flex; align-items:baseline; gap:8px; border-bottom:2px solid var(--accent); padding-bottom:8px; }
-  .amt span { font-family:"IBM Plex Mono",monospace; font-size:25px; color:var(--muted); }
-  .amt input { flex:1; font-family:"IBM Plex Mono",monospace; font-size:32px; font-weight:600;
-               font-variant-numeric:tabular-nums; border:none; background:none; color:var(--ink);
-               padding:0; width:100%; }
-  .amt input:focus { outline:none; }
-  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-  .chip { font-family:"IBM Plex Mono",monospace; font-size:13px; border:1px solid var(--line);
-          background:var(--surface); color:var(--muted); border-radius:999px; padding:6px 13px; cursor:pointer; }
-  .chip:hover { border-color:var(--accent); color:var(--accent); }
-  .profiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px; }
-  @media (max-width:700px){ .profiles { grid-template-columns:1fr; } }
-  .prof { border:1px solid var(--line); border-radius:6px; padding:13px; cursor:pointer;
-          background:var(--surface); text-align:left; display:flex; flex-direction:column;
-          gap:3px; min-height:44px; }
-  .prof strong { font-family:Archivo,sans-serif; font-weight:700; font-size:14px; color:var(--ink); }
-  .prof small { color:var(--muted); font-size:12.5px; }
-  .prof[aria-pressed="true"] { border:2px solid var(--accent); background:var(--accent-soft); }
-  .allocbar { display:flex; height:32px; border-radius:6px; overflow:hidden; }
-  .allocbar div { display:flex; align-items:center; justify-content:center; color:#fff;
-    font-family:Archivo,sans-serif; font-weight:700; font-size:12px; white-space:nowrap; }
-  button.i { display:inline-flex; align-items:center; justify-content:center;
-    width:15px; height:15px; margin-left:5px; padding:0; border-radius:50%;
-    border:1px solid var(--line); background:var(--surface2); color:var(--muted);
-    font-family:"IBM Plex Sans",sans-serif; font-size:9.5px; font-weight:600;
-    font-style:italic; line-height:1; cursor:pointer; vertical-align:middle;
-    text-transform:none; letter-spacing:0; flex-shrink:0; }
-  button.i:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
-  .infopop { position:absolute; z-index:60; max-width:340px; background:var(--surface);
-    border:1px solid var(--line); border-radius:8px; padding:14px 16px;
-    box-shadow:0 8px 28px rgba(0,0,0,.14); font-size:13.5px; line-height:1.55; }
-  .infopop strong { font-family:Archivo,sans-serif; font-size:13px; display:block;
-    margin-bottom:6px; color:var(--ink); }
-  .infopop p { margin:0; color:var(--muted); }
-  .infopop em { color:var(--ink); font-style:italic; }
-  footer { max-width:1120px; margin:0 auto; padding:16px 22px 44px; color:var(--muted);
-           font-size:12.5px; border-top:1px solid var(--line); }
+  footer { max-width:1180px; margin:0 auto; padding:20px 26px 50px;
+    border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; }
 </style>
 </head>
 <body>
 <header>
   <div class="hwrap">
-    <div class="brand">360° <em>Advisor</em></div>
-    <span id="regimeChip">reading market…</span>
-    <span id="asof"></span>
+    <div class="brand" id="brand">360° <em>Advisor</em></div>
+    <nav>
+      <button data-nav="home" aria-current="page">Today</button>
+      <button data-nav="invest">Invest</button>
+      <button data-nav="portfolio">Portfolio</button>
+    </nav>
+    <div class="search">
+      <span id="regime"></span>
+      <input id="lookup" type="text" placeholder="Company symbol" list="symlist"
+             autocomplete="off" aria-label="Look up a company">
+      <datalist id="symlist"></datalist>
+    </div>
   </div>
-  <nav role="tablist" aria-label="Sections">
-    <button role="tab" aria-selected="true" data-tab="picks">Live picks</button>
-    <button role="tab" aria-selected="false" data-tab="fundamentals">Fundamentals</button>
-    <button role="tab" aria-selected="false" data-tab="deep">360° deep dive</button>
-    <button role="tab" aria-selected="false" data-tab="castle">Castle in the Air</button>
-    <button role="tab" aria-selected="false" data-tab="fno">F&amp;O</button>
-    <button role="tab" aria-selected="false" data-tab="invest">Invest an amount</button>
-    <button role="tab" aria-selected="false" data-tab="advice">What should I do</button>
-    <button role="tab" aria-selected="false" data-tab="news">News</button>
-    <button role="tab" aria-selected="false" data-tab="portfolio">Portfolio</button>
-    <button role="tab" aria-selected="false" data-tab="guide">Guide</button>
-  </nav>
 </header>
 
 <main>
-  <!-- ===== LIVE PICKS ===== -->
-  <section class="pane active" id="p-picks">
-    <h1>What the advisor likes today<span data-info="regime"></span></h1>
-    <p class="lede">Every liquid name in the watch universe, scored on trend, momentum and
-    relative strength, then ranked. A pick only becomes a <em>suggestion</em> when a setup
-    fires — otherwise it is context, not a call.</p>
-    <div class="stats" id="regimeStats"></div>
-    <div id="picksNote"></div>
-    <h2>Suggestions — setups firing now<span data-info="setup"></span></h2>
-    <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Stock</th><th>Setup<span data-info="setup"></span></th><th class="num">Price ₹</th><th class="num">Buy zone ₹<span data-info="buyzone"></span></th><th class="num">Stop ₹<span data-info="stop"></span></th><th class="num">Target 1 ₹<span data-info="target"></span></th><th class="num">Target 2 ₹</th><th class="num">Risk:reward<span data-info="rr"></span></th><th class="num">Score<span data-info="score"></span></th></tr></thead>
-      <tbody id="sugRows"><tr><td colspan="9" class="muted"><span class="spin"></span>Reading the market…</td></tr></tbody>
-    </table></div></div>
-    <h2>Full ranking</h2>
-    <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Stock</th><th class="num">Price ₹<span data-info="price"></span></th><th class="num">Day<span data-info="day"></span></th><th>Trend<span data-info="trend"></span></th><th class="num">RSI<span data-info="rsi"></span></th><th class="num">From 52w high<span data-info="from52"></span></th><th class="num">6m move<span data-info="mom6m"></span></th><th class="num">Volatility<span data-info="volatility"></span></th><th class="num">Score<span data-info="score"></span></th></tr></thead>
-      <tbody id="rankRows"></tbody>
-    </table></div></div>
-  </section>
-
-  <!-- ===== FUNDAMENTALS ===== -->
-  <section class="pane" id="p-fundamentals">
-    <h1>Fundamental analysis</h1>
-    <p class="lede">Business quality before price: how the company earns, what it owes, and what
-    you pay for it. Scored the way the doctrine specifies — quality 40, growth 25, valuation 25,
-    balance-sheet safety 10 — with missing data shown as a gap, never assumed good.</p>
-    <div class="rowline" style="margin-bottom:14px">
-      <button class="ghost" id="loadFund">Load fundamentals</button>
-      <span class="muted" id="fundStatus">Fetched on demand — the source is rate-limited.</span>
-    </div>
-    <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Company</th><th class="num">Score<span data-info="fscore"></span></th><th class="num">P/E<span data-info="pe"></span></th><th class="num">P/B<span data-info="pb"></span></th><th class="num">ROE<span data-info="roe"></span></th><th class="num">Op margin<span data-info="opmargin"></span></th><th class="num">Debt/Equity<span data-info="de"></span></th><th class="num">Rev growth<span data-info="revgrowth"></span></th><th>Read</th></tr></thead>
-      <tbody id="fundRows"><tr><td colspan="9" class="muted">Press “Load fundamentals”.</td></tr></tbody>
-    </table></div></div>
-    <div id="fundDetail"></div>
-  </section>
-
-  <!-- ===== 360 DEEP DIVE ===== -->
-  <section class="pane" id="p-deep">
-    <h1>360° deep dive<span data-info="cashconv"></span></h1>
-    <p class="lede">Read one company the way an owner would: where the money actually comes from,
-    what it depends on to make its product, what could break it, and what would have to go right
-    for it to be bigger in ten years.</p>
-    <div class="rowline" style="margin-bottom:16px">
-      <label class="muted">Company
-        <input type="text" id="deepSym" value="RELIANCE" style="width:160px" list="deepList">
-        <datalist id="deepList"></datalist>
-      </label>
-      <button class="ghost" id="loadDeep">Analyse</button>
-      <span class="muted" id="deepStatus"></span>
-    </div>
-    <div id="deepBody"><div class="notice info">Pick a company and press Analyse.</div></div>
-  </section>
-
-  <!-- ===== CASTLE IN THE AIR ===== -->
-  <section class="pane" id="p-castle">
-    <h1>Castle in the Air<span data-info="quadrant"></span></h1>
-    <p class="lede">Burton Malkiel's two theories, side by side. <strong>Firm foundation</strong>
-    says a share is worth what the business earns. <strong>Castle in the air</strong> says it is
-    worth what the next buyer will pay — Keynes' beauty contest, where you guess what the crowd
-    will admire. This screen measures both and shows which one is currently holding the price up.</p>
-    <div class="rowline" style="margin-bottom:14px">
-      <button class="ghost" id="loadCastle">Run the analysis</button>
-      <span class="muted" id="castleStatus">Needs fundamentals — loads both together.</span>
-    </div>
-    <div class="grid2">
-      <div>
-        <div class="quad" id="quad"></div>
-        <p class="muted" style="margin-top:9px">Horizontal: how much of the price rests on business
-        fundamentals. Vertical: how much rests on crowd enthusiasm — momentum, volume surges,
-        extension above trend. Click a dot for the reading.</p>
-      </div>
-      <div id="castlePanel"><div class="notice info">Run the analysis to populate the map.</div></div>
-    </div>
-    <h2>The greater-fool ledger</h2>
-    <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Stock</th><th class="num">Firm foundation<span data-info="firm"></span></th><th class="num">Castle score<span data-info="castle"></span></th><th>Standing on<span data-info="quadrant"></span></th><th class="num">Stretch above trend<span data-info="stretch"></span></th><th class="num">Crowd fuel</th><th>What it means</th></tr></thead>
-      <tbody id="castleRows"><tr><td colspan="7" class="muted">Not run yet.</td></tr></tbody>
-    </table></div></div>
-  </section>
-
-  <!-- ===== F&O ===== -->
-  <section class="pane" id="p-fno">
-    <h1>Futures &amp; Options<span data-info="spread"></span></h1>
-    <p class="lede">Volatility first, direction second, and only structures whose maximum loss is
-    known before you enter. Naked short options and expiry-day gambling are not in this menu —
-    SEBI's own study found more than 90% of retail F&amp;O traders lose money, and undefined risk
-    is how.</p>
-    <div class="rowline" style="margin-bottom:14px">
-      <label class="muted">Underlying
-        <select id="fnoSym">
-          <option value="NIFTY">NIFTY 50</option>
-          <option value="BANKNIFTY">BANK NIFTY</option>
-          <option value="RELIANCE">RELIANCE</option>
-          <option value="HDFCBANK">HDFCBANK</option>
-          <option value="ICICIBANK">ICICIBANK</option>
-          <option value="INFY">INFY</option>
-        </select>
-      </label>
-      <label class="muted">Capital ₹ <input type="number" id="fnoCapital" value="1000000" step="50000" style="width:130px"></label>
-      <button class="ghost" id="loadFno">Analyse</button>
-      <span class="muted" id="fnoStatus"></span>
-    </div>
-    <div class="stats" id="fnoStats"></div>
-    <div id="fnoSuggestion"></div>
-    <div id="fnoChain"></div>
-  </section>
-
-  <!-- ===== INVEST ===== -->
-  <section class="pane" id="p-invest">
-    <div class="steps" id="steps">
-      <div class="step on" data-s="1"><div class="dotn">1</div><span>Amount</span></div>
-      <div class="sbar"></div>
-      <div class="step" data-s="2"><div class="dotn">2</div><span>Review plan</span></div>
-      <div class="sbar"></div>
-      <div class="step" data-s="3"><div class="dotn">3</div><span>Send orders</span></div>
-    </div>
-
-    <div class="screen active" id="i1">
-      <h1>How much do you want to invest?</h1>
-      <p class="lede">The advisor builds a complete portfolio plan for this amount — what to buy,
-      how much of each, and the exit price for every holding. Nothing is bought until you approve it.</p>
-      <div class="card" style="display:flex;flex-direction:column;gap:20px">
-        <div>
-          <label class="lbl" for="amount">Investment amount</label>
-          <div class="amt"><span>₹</span><input id="amount" type="text" inputmode="numeric" value="10,00,000"></div>
-          <div class="chips">
-            <button class="chip" data-amt="100000">₹1 L</button>
-            <button class="chip" data-amt="500000">₹5 L</button>
-            <button class="chip" data-amt="1000000">₹10 L</button>
-            <button class="chip" data-amt="2500000">₹25 L</button>
-          </div>
-        </div>
-        <div>
-          <span class="lbl">Risk profile</span>
-          <div class="profiles" id="profiles">
-            <button class="prof" data-p="careful" aria-pressed="false"><strong>Careful</strong><small>More index &amp; cash, smaller swings</small></button>
-            <button class="prof" data-p="balanced" aria-pressed="true"><strong>Balanced</strong><small>Core index + selected stocks</small></button>
-            <button class="prof" data-p="ambitious" aria-pressed="false"><strong>Ambitious</strong><small>Larger stock picks, more movement</small></button>
-          </div>
-        </div>
-        <button class="primary" id="build">Build my plan</button>
-        <div id="buildStatus" class="muted"></div>
-      </div>
-    </div>
-
-    <div class="screen" id="i2">
-      <h1 id="planTitle">Your plan</h1>
-      <p class="lede" id="planSub"></p>
-      <div class="card" style="margin-bottom:16px">
-        <div class="allocbar" id="allocbar"></div>
-      </div>
-      <div class="card tight" style="margin-bottom:16px"><div class="tablewrap"><table>
-        <thead><tr><th>What you buy</th><th>Role<span data-info="core"></span></th><th class="num">Qty</th><th class="num">Price ₹</th><th class="num">Value ₹</th><th class="num">Exit price ₹<span data-info="stop"></span></th></tr></thead>
-        <tbody id="planRows"></tbody>
-      </table></div></div>
-      <div id="planNotes"></div>
-      <div class="grid2" style="margin-top:14px">
-        <div class="notice warnn"><span class="k">Worst normal month</span><span id="badMonth"></span></div>
-        <div style="display:flex;flex-direction:column;gap:10px;justify-content:center">
-          <button class="primary" id="approve">Approve — prepare orders</button>
-          <button class="ghost" id="back1">Change amount or profile</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="screen" id="i3">
-      <h1 id="ordTitle">Send orders to your Demat account</h1>
-      <p class="lede">They open in your broker app as a ready-made basket. You tap confirm there,
-      with your own PIN — the advisor never holds your login and never moves money on its own.</p>
-      <div class="card tight" style="margin-bottom:14px">
-        <p class="muted" id="ordSummary" style="margin:10px 0"></p>
-        <div class="tablewrap"><table>
-          <thead><tr><th>Order</th><th class="num">Qty</th><th class="num">Buy at most ₹</th><th class="num">Value ₹</th></tr></thead>
-          <tbody id="ordRows"></tbody>
-        </table></div>
-        <p class="muted" style="margin-top:11px">All delivery orders — the shares sit in your Demat
-        account. The price shown is a ceiling: the order fills at or below it, or lapses at close.</p>
-      </div>
-      <div class="card rowline" style="margin-bottom:12px">
-        <label class="lbl" style="margin:0" for="kitekey">Kite API key</label>
-        <input type="text" id="kitekey" placeholder="from kite.trade (free)" autocomplete="off" style="width:210px">
-        <span class="muted">Stored only in this browser. Without it, use the CSV.</span>
-      </div>
-      <form id="kiteForm" method="POST" action="https://kite.zerodha.com/connect/basket" target="_blank" style="margin-bottom:10px">
-        <input type="hidden" name="api_key" id="fKey"><input type="hidden" name="data" id="fData">
-        <button class="primary" type="submit">Open basket in Kite</button>
-      </form>
-      <div class="rowline">
-        <button class="ghost" id="dlCsv">Download as CSV</button>
-        <button class="ghost" id="back2">Back to the plan</button>
-        <button class="ghost" id="savePf">I placed these — track them</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== ADVICE ===== -->
-  <section class="pane" id="p-advice">
-    <h1>What should I do<span data-info="verdict"></span></h1>
-    <p class="lede">One clear action per stock — sell, trim, hold, buy, or stay away — reached
-    through the same nine-step sequence every time: evidence, hard vetoes, your position, the
-    business, the price you pay, the news, the trend, the market, then the horizon. Open any
-    verdict to see every step that produced it.</p>
-    <div class="rowline" style="margin-bottom:14px">
-      <button class="ghost" id="runHoldings">Review what I own</button>
-      <input type="text" id="adviceSym" placeholder="or any symbol" style="width:150px" list="deepList">
-      <button class="ghost" id="runOne">Check this stock</button>
-      <span class="muted" id="adviceStatus"></span>
-    </div>
-    <div id="adviceBody"><div class="notice info">Press “Review what I own” for verdicts on your
-    saved positions, or type a symbol to check any stock.</div></div>
-  </section>
-
-  <!-- ===== NEWS ===== -->
-  <section class="pane" id="p-news">
-    <h1>News that moves stocks<span data-info="newstone"></span></h1>
-    <p class="lede">Headlines are classified by event type — results, orders, regulatory action,
-    downgrades, litigation — and scored for direction and recency, so the advisor can reason
-    about them instead of just listing them.</p>
-    <div class="rowline" style="margin-bottom:14px">
-      <button class="ghost" id="loadMarketNews">Market news</button>
-      <input type="text" id="newsSym" placeholder="company symbol" style="width:150px" list="deepList">
-      <button class="ghost" id="loadStockNews">Company news</button>
-      <span class="muted" id="newsStatus"></span>
-    </div>
-    <div id="newsBody"></div>
-  </section>
-
-  <!-- ===== GUIDE ===== -->
-  <section class="pane" id="p-guide">
-    <h1>What everything means</h1>
-    <p class="lede">Every number this advisor shows, in plain language — what it measures, how to
-    read it, and where it misleads. The same explanations appear behind the small
-    <span style="border:1px solid var(--line);background:var(--surface2);border-radius:50%;
-    width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;
-    font-size:9.5px;font-style:italic;color:var(--muted)">i</span> markers throughout the app.</p>
-    <div id="guideBody"></div>
-  </section>
-
-  <!-- ===== PORTFOLIO ===== -->
-  <section class="pane" id="p-portfolio">
-    <h1>My portfolio</h1>
-    <p class="lede">What you hold, what it is worth now, and the one thing that needs a decision
-    today. Positions are saved in this browser when you mark a plan as placed.</p>
-    <div id="pfBody"></div>
-  </section>
+  <section class="screen on" id="s-home"></section>
+  <section class="screen" id="s-company"></section>
+  <section class="screen" id="s-invest"></section>
+  <section class="screen" id="s-portfolio"></section>
 </main>
 
-<footer>Decision-support only, not investment advice. Single-user personal tool — the advisor
-proposes, you decide and place every order yourself. Prices are end-of-day from a free public
-feed; confirm live prices in your broker app before acting.</footer>
+<footer>
+  Decision support, not investment advice. Every figure comes from a named source and
+  every conclusion opens into the steps that produced it — if the reasoning looks wrong
+  to you, it probably is, and that is the point.
+</footer>
 
+<script src="./charts.js"></script>
 <script src="./info.js"></script>
-<script src="./app.js"></script>
-<script src="./deepdive.js"></script>
 <script src="./verdict.js"></script>
-<script src="./advice.js"></script>
+<script src="./deepdive.js"></script>
+<script src="./company.js"></script>
+<script src="./app.js"></script>
 </body>
 </html>
