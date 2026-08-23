@@ -165,6 +165,20 @@
   .allocbar { display:flex; height:32px; border-radius:6px; overflow:hidden; }
   .allocbar div { display:flex; align-items:center; justify-content:center; color:#fff;
     font-family:Archivo,sans-serif; font-weight:700; font-size:12px; white-space:nowrap; }
+  button.i { display:inline-flex; align-items:center; justify-content:center;
+    width:15px; height:15px; margin-left:5px; padding:0; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface2); color:var(--muted);
+    font-family:"IBM Plex Sans",sans-serif; font-size:9.5px; font-weight:600;
+    font-style:italic; line-height:1; cursor:pointer; vertical-align:middle;
+    text-transform:none; letter-spacing:0; flex-shrink:0; }
+  button.i:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .infopop { position:absolute; z-index:60; max-width:340px; background:var(--surface);
+    border:1px solid var(--line); border-radius:8px; padding:14px 16px;
+    box-shadow:0 8px 28px rgba(0,0,0,.14); font-size:13.5px; line-height:1.55; }
+  .infopop strong { font-family:Archivo,sans-serif; font-size:13px; display:block;
+    margin-bottom:6px; color:var(--ink); }
+  .infopop p { margin:0; color:var(--muted); }
+  .infopop em { color:var(--ink); font-style:italic; }
   footer { max-width:1120px; margin:0 auto; padding:16px 22px 44px; color:var(--muted);
            font-size:12.5px; border-top:1px solid var(--line); }
 </style>
@@ -184,30 +198,27 @@
     <button role="tab" aria-selected="false" data-tab="fno">F&amp;O</button>
     <button role="tab" aria-selected="false" data-tab="invest">Invest an amount</button>
     <button role="tab" aria-selected="false" data-tab="portfolio">Portfolio</button>
+    <button role="tab" aria-selected="false" data-tab="guide">Guide</button>
   </nav>
 </header>
 
 <main>
   <!-- ===== LIVE PICKS ===== -->
   <section class="pane active" id="p-picks">
-    <h1>What the advisor likes today</h1>
+    <h1>What the advisor likes today<span data-info="regime"></span></h1>
     <p class="lede">Every liquid name in the watch universe, scored on trend, momentum and
     relative strength, then ranked. A pick only becomes a <em>suggestion</em> when a setup
     fires — otherwise it is context, not a call.</p>
     <div class="stats" id="regimeStats"></div>
     <div id="picksNote"></div>
-    <h2>Suggestions — setups firing now</h2>
+    <h2>Suggestions — setups firing now<span data-info="setup"></span></h2>
     <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Stock</th><th>Setup</th><th class="num">Price ₹</th><th class="num">Buy zone ₹</th>
-      <th class="num">Stop ₹</th><th class="num">Target 1 ₹</th><th class="num">Target 2 ₹</th>
-      <th class="num">Risk:reward</th><th class="num">Score</th></tr></thead>
+      <thead><tr><th>Stock</th><th>Setup<span data-info="setup"></span></th><th class="num">Price ₹</th><th class="num">Buy zone ₹<span data-info="buyzone"></span></th><th class="num">Stop ₹<span data-info="stop"></span></th><th class="num">Target 1 ₹<span data-info="target"></span></th><th class="num">Target 2 ₹</th><th class="num">Risk:reward<span data-info="rr"></span></th><th class="num">Score<span data-info="score"></span></th></tr></thead>
       <tbody id="sugRows"><tr><td colspan="9" class="muted"><span class="spin"></span>Reading the market…</td></tr></tbody>
     </table></div></div>
     <h2>Full ranking</h2>
     <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Stock</th><th class="num">Price ₹</th><th class="num">Day</th><th>Trend</th>
-      <th class="num">RSI</th><th class="num">From 52w high</th><th class="num">6m move</th>
-      <th class="num">Volatility</th><th class="num">Score</th></tr></thead>
+      <thead><tr><th>Stock</th><th class="num">Price ₹<span data-info="price"></span></th><th class="num">Day<span data-info="day"></span></th><th>Trend<span data-info="trend"></span></th><th class="num">RSI<span data-info="rsi"></span></th><th class="num">From 52w high<span data-info="from52"></span></th><th class="num">6m move<span data-info="mom6m"></span></th><th class="num">Volatility<span data-info="volatility"></span></th><th class="num">Score<span data-info="score"></span></th></tr></thead>
       <tbody id="rankRows"></tbody>
     </table></div></div>
   </section>
@@ -223,9 +234,7 @@
       <span class="muted" id="fundStatus">Fetched on demand — the source is rate-limited.</span>
     </div>
     <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Company</th><th class="num">Score</th><th class="num">P/E</th><th class="num">P/B</th>
-      <th class="num">ROE</th><th class="num">Op margin</th><th class="num">Debt/Equity</th>
-      <th class="num">Rev growth</th><th>Read</th></tr></thead>
+      <thead><tr><th>Company</th><th class="num">Score<span data-info="fscore"></span></th><th class="num">P/E<span data-info="pe"></span></th><th class="num">P/B<span data-info="pb"></span></th><th class="num">ROE<span data-info="roe"></span></th><th class="num">Op margin<span data-info="opmargin"></span></th><th class="num">Debt/Equity<span data-info="de"></span></th><th class="num">Rev growth<span data-info="revgrowth"></span></th><th>Read</th></tr></thead>
       <tbody id="fundRows"><tr><td colspan="9" class="muted">Press “Load fundamentals”.</td></tr></tbody>
     </table></div></div>
     <div id="fundDetail"></div>
@@ -233,7 +242,7 @@
 
   <!-- ===== 360 DEEP DIVE ===== -->
   <section class="pane" id="p-deep">
-    <h1>360° deep dive</h1>
+    <h1>360° deep dive<span data-info="cashconv"></span></h1>
     <p class="lede">Read one company the way an owner would: where the money actually comes from,
     what it depends on to make its product, what could break it, and what would have to go right
     for it to be bigger in ten years.</p>
@@ -250,7 +259,7 @@
 
   <!-- ===== CASTLE IN THE AIR ===== -->
   <section class="pane" id="p-castle">
-    <h1>Castle in the Air</h1>
+    <h1>Castle in the Air<span data-info="quadrant"></span></h1>
     <p class="lede">Burton Malkiel's two theories, side by side. <strong>Firm foundation</strong>
     says a share is worth what the business earns. <strong>Castle in the air</strong> says it is
     worth what the next buyer will pay — Keynes' beauty contest, where you guess what the crowd
@@ -270,16 +279,14 @@
     </div>
     <h2>The greater-fool ledger</h2>
     <div class="card tight"><div class="tablewrap"><table>
-      <thead><tr><th>Stock</th><th class="num">Firm foundation</th><th class="num">Castle score</th>
-      <th>Standing on</th><th class="num">Stretch above trend</th><th class="num">Crowd fuel</th>
-      <th>What it means</th></tr></thead>
+      <thead><tr><th>Stock</th><th class="num">Firm foundation<span data-info="firm"></span></th><th class="num">Castle score<span data-info="castle"></span></th><th>Standing on<span data-info="quadrant"></span></th><th class="num">Stretch above trend<span data-info="stretch"></span></th><th class="num">Crowd fuel</th><th>What it means</th></tr></thead>
       <tbody id="castleRows"><tr><td colspan="7" class="muted">Not run yet.</td></tr></tbody>
     </table></div></div>
   </section>
 
   <!-- ===== F&O ===== -->
   <section class="pane" id="p-fno">
-    <h1>Futures &amp; Options</h1>
+    <h1>Futures &amp; Options<span data-info="spread"></span></h1>
     <p class="lede">Volatility first, direction second, and only structures whose maximum loss is
     known before you enter. Naked short options and expiry-day gambling are not in this menu —
     SEBI's own study found more than 90% of retail F&amp;O traders lose money, and undefined risk
@@ -349,8 +356,7 @@
         <div class="allocbar" id="allocbar"></div>
       </div>
       <div class="card tight" style="margin-bottom:16px"><div class="tablewrap"><table>
-        <thead><tr><th>What you buy</th><th>Role</th><th class="num">Qty</th><th class="num">Price ₹</th>
-        <th class="num">Value ₹</th><th class="num">Exit price ₹</th></tr></thead>
+        <thead><tr><th>What you buy</th><th>Role<span data-info="core"></span></th><th class="num">Qty</th><th class="num">Price ₹</th><th class="num">Value ₹</th><th class="num">Exit price ₹<span data-info="stop"></span></th></tr></thead>
         <tbody id="planRows"></tbody>
       </table></div></div>
       <div id="planNotes"></div>
@@ -393,6 +399,17 @@
     </div>
   </section>
 
+  <!-- ===== GUIDE ===== -->
+  <section class="pane" id="p-guide">
+    <h1>What everything means</h1>
+    <p class="lede">Every number this advisor shows, in plain language — what it measures, how to
+    read it, and where it misleads. The same explanations appear behind the small
+    <span style="border:1px solid var(--line);background:var(--surface2);border-radius:50%;
+    width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;
+    font-size:9.5px;font-style:italic;color:var(--muted)">i</span> markers throughout the app.</p>
+    <div id="guideBody"></div>
+  </section>
+
   <!-- ===== PORTFOLIO ===== -->
   <section class="pane" id="p-portfolio">
     <h1>My portfolio</h1>
@@ -406,6 +423,7 @@
 proposes, you decide and place every order yourself. Prices are end-of-day from a free public
 feed; confirm live prices in your broker app before acting.</footer>
 
+<script src="./info.js"></script>
 <script src="./app.js"></script>
 <script src="./deepdive.js"></script>
 </body>
