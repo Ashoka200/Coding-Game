@@ -1,0 +1,13 @@
+# Netlify config at repo root so the site builds without a base-directory setting.
+# The live console app lives in live-console/.
+
+[build]
+  publish = "live-console/public"
+
+[functions]
+  directory = "live-console/netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
