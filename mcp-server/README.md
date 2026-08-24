@@ -1,4 +1,4 @@
-# 360° Advisor MCP server
+# Astraveda Wealth Management — MCP server
 
 Gives an LLM **verified** market data instead of remembered or invented figures.
 

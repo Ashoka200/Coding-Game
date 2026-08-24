@@ -3,90 +3,181 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>360° Advisor</title>
+<title>Astraveda Wealth Management</title>
+<meta name="description" content="Astraveda Wealth Management — a private research desk for Indian markets. Every figure sourced, every conclusion opens into its reasoning.">
+<meta name="theme-color" content="#0E1F33">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E1F33'/%3E%3Cpath d='M16 5.5l2.1 7.3 7.4 1.9-6.4 3.9 1.2 7.6-4.3-4.3-6.4 3.6 2.6-7-5.2-5.4 7.4-.6z' fill='%23C9A24D'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-  /* Restrained institutional: a serious face for headings, a clear one for
-     reading, monospace wherever digits must line up. Colour carries meaning —
-     red is risk, green is gain — and is used nowhere decorative. */
+  /* Astraveda Wealth Management.
+     A private desk, not a dashboard. The house colours are midnight ink and
+     assayed gold: the navy carries the brand, the gold marks what the desk
+     itself asserts. Red is risk and green is gain, and neither is ever used
+     for decoration — if you see red on this page, something is actually wrong. */
   :root {
-    --bg:#F7F7F4; --surface:#FFFFFF; --sunk:#EFEFEA; --line:#DEDDD6;
-    --line-strong:#C8C7BE;
-    --ink:#1A1A17; --ink-2:#43433D; --muted:#6E6E65;
-    --accent:#8A6A1F; --accent-soft:#F2EAD7;
-    --up:#1D6B48; --up-soft:#E0EDE6; --down:#A32E22; --down-soft:#F5E2DF;
+    /* brand — constant across both themes, the masthead never inverts */
+    --brand:#0E1F33; --brand-2:#16324F; --brand-ink:#F2EFE6;
+    --brand-mute:#9FB3C8; --gold:#C9A24D; --gold-2:#E4C77E;
+
+    --bg:#F6F4EE; --surface:#FFFFFF; --sunk:#EFECE3; --line:#E0DCD0;
+    --line-strong:#C7C2B2;
+    --ink:#16171A; --ink-2:#3F4147; --muted:#6B6D74;
+    --accent:#8A6A1F; --accent-soft:#F3EAD5;
+    --up:#1D6B48; --up-soft:#E0EDE6; --down:#A32E22; --down-soft:#F6E2DE;
     --warn:#8A6A12; --warn-soft:#F5EDD9; --info:#2C5C74; --info-soft:#E2ECF1;
-    --shadow:0 1px 2px rgba(26,26,23,.05), 0 4px 14px rgba(26,26,23,.04);
+    --glow:rgba(201,162,77,.16); --glow-2:rgba(22,50,79,.09);
+    --shadow:0 1px 2px rgba(14,31,51,.06), 0 8px 24px rgba(14,31,51,.05);
+    --grain:rgba(14,31,51,.022);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg:#14140F; --surface:#1C1C17; --sunk:#232320; --line:#32322C;
-      --line-strong:#45453D;
-      --ink:#EDEDE6; --ink-2:#C7C7BE; --muted:#94948B;
-      --accent:#D6AC55; --accent-soft:#2E2614;
-      --up:#5FB98A; --up-soft:#16291F; --down:#DE7A6C; --down-soft:#301B18;
-      --warn:#D3AE55; --warn-soft:#2B2413; --info:#7FB0C8; --info-soft:#16242B;
-      --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+      --bg:#0B1017; --surface:#131A24; --sunk:#1A2230; --line:#26303D;
+      --line-strong:#3A4657;
+      --ink:#ECEAE3; --ink-2:#C3C6CC; --muted:#8B929C;
+      --accent:#D9B46A; --accent-soft:#241E11;
+      --up:#5FB98A; --up-soft:#14271E; --down:#E0806F; --down-soft:#2E1A17;
+      --warn:#D3AE55; --warn-soft:#272113; --info:#7FB0C8; --info-soft:#152430;
+      --glow:rgba(201,162,77,.10); --glow-2:rgba(80,140,190,.08);
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.3);
+      --grain:rgba(255,255,255,.014);
     }
   }
   :root[data-theme="dark"] {
-    --bg:#14140F; --surface:#1C1C17; --sunk:#232320; --line:#32322C;
-    --line-strong:#45453D;
-    --ink:#EDEDE6; --ink-2:#C7C7BE; --muted:#94948B;
-    --accent:#D6AC55; --accent-soft:#2E2614;
-    --up:#5FB98A; --up-soft:#16291F; --down:#DE7A6C; --down-soft:#301B18;
-    --warn:#D3AE55; --warn-soft:#2B2413; --info:#7FB0C8; --info-soft:#16242B;
-    --shadow:0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+    --bg:#0B1017; --surface:#131A24; --sunk:#1A2230; --line:#26303D;
+    --line-strong:#3A4657;
+    --ink:#ECEAE3; --ink-2:#C3C6CC; --muted:#8B929C;
+    --accent:#D9B46A; --accent-soft:#241E11;
+    --up:#5FB98A; --up-soft:#14271E; --down:#E0806F; --down-soft:#2E1A17;
+    --warn:#D3AE55; --warn-soft:#272113; --info:#7FB0C8; --info-soft:#152430;
+    --glow:rgba(201,162,77,.10); --glow-2:rgba(80,140,190,.08);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.3);
+    --grain:rgba(255,255,255,.014);
   }
 
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
-  body { margin:0; background:var(--bg); color:var(--ink);
+  body { margin:0; color:var(--ink);
          font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:15px;
-         line-height:1.55; font-feature-settings:"kern"; }
+         line-height:1.55; font-feature-settings:"kern";
+         background:
+           radial-gradient(1100px 520px at 8% -8%, var(--glow) 0%, transparent 62%),
+           radial-gradient(900px 460px at 102% 2%, var(--glow-2) 0%, transparent 58%),
+           var(--bg);
+         background-attachment:fixed; }
+  /* the faintest laid-paper texture — felt, not seen */
+  body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:repeating-linear-gradient(0deg, var(--grain) 0 1px, transparent 1px 3px); }
+  body > * { position:relative; z-index:1; }
+
   .mono { font-family:"IBM Plex Mono",ui-monospace,monospace;
           font-variant-numeric:tabular-nums; }
   h1,h2,h3 { font-family:Fraunces,Georgia,serif; font-weight:600;
-             letter-spacing:-0.01em; margin:0; text-wrap:balance; }
-  h1 { font-size:30px; line-height:1.2; }
+             letter-spacing:-0.012em; margin:0; text-wrap:balance; }
+  h1 { font-size:32px; line-height:1.18; }
   h2 { font-size:19px; margin:0 0 12px; }
   h3 { font-size:15px; }
   p { margin:0 0 12px; }
   a { color:var(--accent); text-underline-offset:2px; }
   a:hover { color:var(--ink); }
 
-  /* ---- chrome ---- */
-  header { background:var(--surface); border-bottom:1px solid var(--line);
-           position:sticky; top:0; z-index:40; }
-  .hwrap { max-width:1180px; margin:0 auto; padding:14px 26px;
-           display:flex; align-items:center; gap:22px; }
-  .brand { font-family:Fraunces,Georgia,serif; font-weight:700; font-size:17px;
-           letter-spacing:-0.01em; cursor:pointer; white-space:nowrap; }
-  .brand em { font-style:normal; color:var(--accent); }
-  nav { display:flex; gap:3px; }
-  nav button { font-family:inherit; font-weight:500; font-size:14px;
-    background:none; border:none; color:var(--muted); padding:7px 13px;
-    border-radius:6px; cursor:pointer; }
-  nav button:hover { color:var(--ink); background:var(--sunk); }
-  nav button[aria-current="page"] { color:var(--ink); background:var(--sunk);
-    font-weight:600; }
-  .search { margin-left:auto; display:flex; align-items:center; gap:9px; }
-  .search input { font-family:"IBM Plex Mono",monospace; font-size:13.5px;
-    padding:8px 12px; border:1px solid var(--line); border-radius:7px;
-    background:var(--bg); color:var(--ink); width:190px; }
-  .search input:focus { outline:2px solid var(--accent); outline-offset:1px;
-    border-color:transparent; }
-  #regime { font-size:12.5px; color:var(--muted); white-space:nowrap; }
-  #regime b { color:var(--ink); font-weight:600; }
+  /* ---- the masthead: the one place the house colours are worn outright ---- */
+  header { position:sticky; top:0; z-index:40; color:var(--brand-ink);
+    background:linear-gradient(115deg, var(--brand) 0%, var(--brand-2) 62%, #1E4166 100%);
+    box-shadow:0 1px 0 rgba(255,255,255,.06), 0 6px 24px rgba(14,31,51,.22); }
+  header::after { content:""; position:absolute; left:0; right:0; bottom:0; height:2px;
+    background:linear-gradient(90deg, var(--gold) 0%, var(--gold-2) 22%,
+      rgba(201,162,77,.25) 55%, transparent 100%); }
+  .hwrap { max-width:1180px; margin:0 auto; padding:13px 26px;
+           display:flex; align-items:center; gap:20px; }
 
-  main { max-width:1180px; margin:0 auto; padding:30px 26px 90px; }
+  .brand { display:flex; align-items:center; gap:11px; cursor:pointer;
+           white-space:nowrap; }
+  .brand .seal { width:32px; height:32px; flex:0 0 32px; border-radius:8px;
+    background:radial-gradient(circle at 32% 28%, rgba(228,199,126,.30), transparent 65%),
+               rgba(255,255,255,.06);
+    border:1px solid rgba(201,162,77,.42);
+    display:flex; align-items:center; justify-content:center; }
+  .brand .seal svg { width:19px; height:19px; display:block; }
+  .brand .wm { display:flex; flex-direction:column; line-height:1.05; }
+  .brand .wm .n { font-family:Fraunces,Georgia,serif; font-weight:700; font-size:17px;
+    letter-spacing:-0.01em; color:var(--brand-ink); }
+  .brand .wm .t { font-size:9.5px; letter-spacing:.19em; text-transform:uppercase;
+    color:var(--gold); font-weight:600; margin-top:3px; }
+  .brand:hover .wm .n { color:#fff; }
+
+  nav { display:flex; gap:2px; margin-left:8px; }
+  nav button { font-family:inherit; font-weight:500; font-size:14px;
+    background:none; border:none; color:var(--brand-mute); padding:8px 14px;
+    border-radius:7px; cursor:pointer; position:relative; }
+  nav button:hover { color:#fff; background:rgba(255,255,255,.07); }
+  nav button[aria-current="page"] { color:#fff; font-weight:600;
+    background:rgba(255,255,255,.10); }
+  nav button[aria-current="page"]::after { content:""; position:absolute;
+    left:14px; right:14px; bottom:1px; height:2px; border-radius:2px;
+    background:var(--gold); }
+
+  .search { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .search input { font-family:"IBM Plex Mono",monospace; font-size:13.5px;
+    padding:8px 12px; border:1px solid rgba(255,255,255,.16); border-radius:8px;
+    background:rgba(255,255,255,.07); color:var(--brand-ink); width:190px; }
+  .search input::placeholder { color:rgba(159,179,200,.85); }
+  .search input:focus { outline:none; border-color:var(--gold);
+    background:rgba(255,255,255,.12); }
+  #regime { font-size:12.5px; color:var(--brand-mute); white-space:nowrap; }
+  #regime b { color:#fff; font-weight:600; }
+  #theme { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16);
+    color:var(--brand-ink); border-radius:8px; width:34px; height:34px; cursor:pointer;
+    font-size:14px; line-height:1; flex:0 0 34px; }
+  #theme:hover { background:rgba(255,255,255,.14); border-color:var(--gold); }
+
+  main { max-width:1180px; margin:0 auto; padding:32px 26px 90px; }
   .screen { display:none; }
-  .screen.on { display:block; }
-  .lede { color:var(--muted); max-width:64ch; margin:6px 0 26px; font-size:15.5px; }
+  .screen.on { display:block; animation:rise .28s ease-out; }
+  @keyframes rise { from { opacity:0; transform:translateY(6px); } }
+  /* every screen title wears the house rule */
+  .screen > h1:first-child { padding-bottom:12px; margin-bottom:2px;
+    position:relative; }
+  .screen > h1:first-child::after { content:""; position:absolute; left:0; bottom:0;
+    width:56px; height:3px; border-radius:2px;
+    background:linear-gradient(90deg, var(--gold), rgba(201,162,77,.15)); }
+  .lede { color:var(--muted); max-width:64ch; margin:14px 0 26px; font-size:15.5px; }
+
+  /* ---- the desk note: the masthead of the day, on Today ---- */
+  .deskhead { position:relative; overflow:hidden; border-radius:14px;
+    padding:26px 28px; margin-bottom:22px; color:var(--brand-ink);
+    background:linear-gradient(118deg, var(--brand) 0%, var(--brand-2) 58%, #21486E 100%);
+    box-shadow:0 10px 34px rgba(14,31,51,.24);
+    display:flex; align-items:flex-end; gap:26px; flex-wrap:wrap; }
+  /* the mark, oversized and half off the edge — a letterhead, not a logo */
+  .deskhead .watermark { position:absolute; right:-34px; top:-46px; width:230px;
+    height:230px; opacity:.07; pointer-events:none; }
+  .deskhead .watermark svg { width:100%; height:100%; display:block; }
+  .deskhead::after { content:""; position:absolute; left:0; right:0; bottom:0;
+    height:3px; background:linear-gradient(90deg, var(--gold), var(--gold-2) 30%,
+      transparent 78%); }
+  .deskhead .eyebrow { font-size:10px; letter-spacing:.22em; text-transform:uppercase;
+    font-weight:600; color:var(--gold); margin-bottom:9px; }
+  .deskhead h1 { color:#fff; font-size:34px; margin:0; }
+  .deskhead .when { color:var(--brand-mute); font-size:13.5px; margin-top:7px; }
+  .deskhead .left { flex:1 1 300px; min-width:0; }
+  .deskhead .pulse { display:flex; gap:26px; flex-wrap:wrap; }
+  .deskhead .pulse .k { font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--brand-mute); font-weight:600; }
+  .deskhead .pulse .v { font-family:"IBM Plex Mono",monospace; font-size:21px;
+    font-variant-numeric:tabular-nums; color:#fff; margin-top:3px; }
+  .deskhead .pulse .v.up { color:#7EDCAA; } .deskhead .pulse .v.down { color:#FF9C8A; }
+  @media (max-width:760px){ .deskhead { padding:22px; } .deskhead h1 { font-size:26px; } }
 
   /* ---- surfaces ---- */
   .card { background:var(--surface); border:1px solid var(--line);
-          border-radius:10px; padding:22px; box-shadow:var(--shadow); }
+          border-radius:12px; padding:22px; box-shadow:var(--shadow);
+          position:relative; }
+  /* a hairline of gold along the top edge — the desk's signature on its own work.
+     Inset from the corners so it never fights the border radius, and it must not
+     clip anything: charts draw axis labels near the card edge. */
+  .card::before { content:""; position:absolute; top:0; left:14px; right:14px;
+    height:2px; border-radius:0 0 2px 2px;
+    background:linear-gradient(90deg, var(--gold), rgba(201,162,77,.10) 55%, transparent); }
   .card + .card { margin-top:16px; }
   .card.flush { padding:8px 22px 16px; }
   .grid { display:grid; gap:16px; }
@@ -94,14 +185,16 @@
   .g3 { grid-template-columns:repeat(3,1fr); }
   .g4 { grid-template-columns:repeat(4,1fr); }
   @media (max-width:900px){ .g2,.g3,.g4 { grid-template-columns:1fr; } }
-  .sectionhead { display:flex; align-items:baseline; gap:12px; margin:34px 0 12px; }
+  .sectionhead { display:flex; align-items:baseline; gap:12px; margin:36px 0 12px;
+    padding-left:13px; border-left:3px solid var(--gold); }
   .sectionhead h2 { margin:0; }
   .sectionhead .note { color:var(--muted); font-size:13px; }
 
   /* ---- the loud alert: reserved for a breached exit price ---- */
   .alarm { border:2px solid var(--down); background:var(--down-soft);
-    border-radius:10px; padding:22px 24px; margin-bottom:16px;
-    display:flex; gap:18px; align-items:flex-start; }
+    border-radius:12px; padding:22px 24px; margin-bottom:16px;
+    display:flex; gap:18px; align-items:flex-start;
+    box-shadow:0 8px 26px rgba(163,46,34,.13); }
   .alarm .mark { width:40px; height:40px; border-radius:50%; background:var(--down);
     color:#fff; display:flex; align-items:center; justify-content:center;
     flex-shrink:0; font-family:Fraunces,serif; font-size:22px; font-weight:700; }
@@ -109,11 +202,13 @@
   .alarm .body { flex:1; }
   .alarm .act { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
 
-  .notice { border-radius:9px; padding:15px 18px; font-size:14.5px; line-height:1.55;
-            margin:14px 0; border:1px solid transparent; }
+  .notice { border-radius:10px; padding:15px 18px; font-size:14.5px; line-height:1.55;
+            margin:14px 0; border:1px solid transparent; border-left-width:3px; }
   .notice.warn { background:var(--warn-soft); border-color:var(--warn); color:var(--ink); }
-  .notice.info { background:var(--info-soft); border-color:var(--line); color:var(--ink-2); }
-  .notice.calm { background:var(--sunk); color:var(--muted); }
+  .notice.info { background:var(--info-soft); border-color:var(--line);
+                 border-left-color:var(--info); color:var(--ink-2); }
+  .notice.calm { background:var(--sunk); color:var(--muted);
+                 border-left-color:var(--line-strong); }
   .notice .k { display:block; font-size:11.5px; font-weight:600; letter-spacing:.08em;
     text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
 
@@ -136,7 +231,9 @@
   .num { text-align:right; font-family:"IBM Plex Mono",monospace;
          font-variant-numeric:tabular-nums; white-space:nowrap; }
   tr.go { cursor:pointer; }
+  tr.go td:first-child { box-shadow:inset 3px 0 0 transparent; }
   tr.go:hover td { background:var(--sunk); }
+  tr.go:hover td:first-child { box-shadow:inset 3px 0 0 var(--gold); }
   .sym { font-weight:600; }
   .sub { color:var(--muted); font-size:12.5px; }
 
@@ -150,16 +247,18 @@
   .pill.acc{background:var(--accent-soft);color:var(--accent)}
 
   button.primary { font-family:inherit; font-weight:600; font-size:15px;
-    background:var(--ink); color:var(--bg); border:none; border-radius:7px;
-    padding:13px 22px; cursor:pointer; min-height:46px; }
-  button.primary:hover { opacity:.9; }
-  button.danger { background:var(--down); color:#fff; }
+    background:linear-gradient(150deg, var(--brand-2), var(--brand)); color:#fff;
+    border:none; border-radius:8px; padding:13px 22px; cursor:pointer;
+    min-height:46px; box-shadow:0 2px 10px rgba(14,31,51,.22); }
+  button.primary:hover { filter:brightness(1.14); }
+  button.danger { background:linear-gradient(150deg,#B8382A,#8E2519); color:#fff;
+    box-shadow:0 2px 10px rgba(163,46,34,.28); }
   button.ghost { font-family:inherit; font-weight:500; font-size:14px;
     background:var(--surface); color:var(--ink); border:1px solid var(--line-strong);
-    border-radius:7px; padding:11px 17px; cursor:pointer; min-height:42px; }
-  button.ghost:hover { border-color:var(--ink); }
+    border-radius:8px; padding:11px 17px; cursor:pointer; min-height:42px; }
+  button.ghost:hover { border-color:var(--gold); color:var(--accent); }
   button:focus-visible, input:focus-visible, select:focus-visible,
-  summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  summary:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
   .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 
   /* ---- the reasoning: the thing this app is built around ---- */
@@ -167,7 +266,8 @@
   details.why > summary { cursor:pointer; font-size:13px; font-weight:600;
     color:var(--muted); list-style:none; display:flex; align-items:center; gap:7px; }
   details.why > summary::-webkit-details-marker { display:none; }
-  details.why > summary::before { content:"▸"; font-size:11px; transition:transform .15s; }
+  details.why > summary::before { content:"▸"; font-size:11px; color:var(--gold);
+    transition:transform .15s; }
   details.why[open] > summary::before { transform:rotate(90deg); }
   details.why > summary:hover { color:var(--ink); }
   ol.chain { margin:14px 0 0; padding:0; list-style:none;
@@ -177,11 +277,16 @@
   ol.chain li::before { content:""; position:absolute; left:-5px; top:7px;
     width:8px; height:8px; border-radius:50%; background:var(--line-strong);
     border:2px solid var(--surface); }
-  ol.chain li.key::before { background:var(--accent); }
+  ol.chain li.key::before { background:var(--gold);
+    box-shadow:0 0 0 3px var(--accent-soft); }
   ol.chain .stage { font-size:11.5px; font-weight:600; letter-spacing:.07em;
     text-transform:uppercase; color:var(--muted); display:block; margin-bottom:2px; }
+  ol.chain li.key .stage { color:var(--accent); }
   ol.chain .finding { color:var(--ink-2); }
-  @media (prefers-reduced-motion:reduce){ details.why > summary::before{transition:none} }
+  @media (prefers-reduced-motion:reduce){
+    details.why > summary::before{transition:none}
+    .screen.on{animation:none}
+  }
 
   /* ---- charts ---- */
   .chartwrap { width:100%; }
@@ -194,8 +299,8 @@
           font-family:"IBM Plex Mono",monospace; }
   .series-price { stroke:var(--ink); stroke-width:1.6; }
   .series-avg { stroke:var(--muted); stroke-width:1.1; stroke-dasharray:4 3; }
-  .series-area { fill:var(--accent); opacity:.07; }
-  .series-last { fill:var(--ink); stroke:var(--surface); stroke-width:2; }
+  .series-area { fill:var(--gold); opacity:.10; }
+  .series-last { fill:var(--gold); stroke:var(--surface); stroke-width:2; }
   .ref-exit { stroke:var(--down); stroke-width:1.2; stroke-dasharray:5 3; }
   .ref-entry { stroke:var(--info); stroke-width:1.2; stroke-dasharray:5 3; }
   .ref-label { font-size:10.5px; font-family:"IBM Plex Mono",monospace; }
@@ -214,7 +319,7 @@
     font-family:"IBM Plex Mono",monospace; }
   text.band-label.price { fill:var(--ink); font-weight:500; }
   .spark-line { stroke:var(--ink-2); stroke-width:1.3; }
-  .spark-last { fill:var(--accent); }
+  .spark-last { fill:var(--gold); }
   .chart-legend { display:flex; gap:16px; align-items:center; margin-top:9px;
     font-size:12.5px; color:var(--muted); flex-wrap:wrap; }
   .swatch { display:inline-block; width:9px; height:9px; border-radius:2px;
@@ -228,24 +333,51 @@
 
   /* ---- gaps, shown in place ---- */
   .gap { background:var(--sunk); border:1px dashed var(--line-strong);
-    border-radius:8px; padding:15px 18px; color:var(--muted); font-size:13.5px; }
+    border-radius:9px; padding:15px 18px; color:var(--muted); font-size:13.5px; }
   .gap b { color:var(--ink-2); font-weight:600; }
 
   .muted { color:var(--muted); font-size:13px; }
   .spin { display:inline-block; width:13px; height:13px;
-    border:2px solid var(--line); border-top-color:var(--accent);
+    border:2px solid var(--line); border-top-color:var(--gold);
     border-radius:50%; animation:sp .8s linear infinite; vertical-align:-2px;
     margin-right:8px; }
   @keyframes sp { to { transform:rotate(360deg); } }
   @media (prefers-reduced-motion:reduce){ .spin{animation:none} }
-  footer { max-width:1180px; margin:0 auto; padding:20px 26px 50px;
-    border-top:1px solid var(--line); color:var(--muted); font-size:12.5px; }
+
+  footer { border-top:1px solid var(--line); margin-top:20px;
+    background:linear-gradient(180deg, transparent, var(--glow-2)); }
+  .fwrap { max-width:1180px; margin:0 auto; padding:26px 26px 56px;
+    display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap;
+    color:var(--muted); font-size:12.5px; }
+  .fwrap .fb { font-family:Fraunces,Georgia,serif; font-weight:700; font-size:15px;
+    color:var(--ink); white-space:nowrap; }
+  .fwrap .fb span { display:block; font-family:"IBM Plex Sans",sans-serif;
+    font-size:9.5px; letter-spacing:.19em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-top:4px; }
+  .fwrap p { max-width:62ch; margin:0; }
+
+  @media (max-width:760px){
+    .hwrap { flex-wrap:wrap; gap:12px; padding:12px 18px; }
+    .search { margin-left:0; width:100%; }
+    .search input { flex:1; width:auto; }
+    main { padding:24px 18px 70px; }
+    h1 { font-size:26px; }
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="hwrap">
-    <div class="brand" id="brand">360° <em>Advisor</em></div>
+    <div class="brand" id="brand" title="Astraveda Wealth Management">
+      <span class="seal" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path fill="#C9A24D"
+          d="M12 1.6l2.3 6.6 6.9.3-5.4 4.3 1.9 6.7L12 15.7 6.3 19.5l1.9-6.7-5.4-4.3 6.9-.3z"/></svg>
+      </span>
+      <span class="wm">
+        <span class="n">Astraveda</span>
+        <span class="t">Wealth Management</span>
+      </span>
+    </div>
     <nav>
       <button data-nav="home" aria-current="page">Today</button>
       <button data-nav="invest">Invest</button>
@@ -256,6 +388,7 @@
       <input id="lookup" type="text" placeholder="Company symbol" list="symlist"
              autocomplete="off" aria-label="Look up a company">
       <datalist id="symlist"></datalist>
+      <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
     </div>
   </div>
 </header>
@@ -268,11 +401,31 @@
 </main>
 
 <footer>
-  Decision support, not investment advice. Every figure comes from a named source and
-  every conclusion opens into the steps that produced it — if the reasoning looks wrong
-  to you, it probably is, and that is the point.
+  <div class="fwrap">
+    <div class="fb">Astraveda<span>Wealth Management</span></div>
+    <p>Decision support, not investment advice. A private research desk for one
+      investor. Every figure comes from a named source and every conclusion opens
+      into the steps that produced it — if the reasoning looks wrong to you, it
+      probably is, and that is the point.</p>
+  </div>
 </footer>
 
+<script>
+  /* Theme: system by default, and the choice is remembered once it is made. */
+  (function () {
+    var root = document.documentElement, key = "astraveda-theme";
+    try { var v = localStorage.getItem(key); if (v) root.setAttribute("data-theme", v); }
+    catch (e) {}
+    document.getElementById("theme").addEventListener("click", function () {
+      var dark = root.getAttribute("data-theme") === "dark" ||
+        (!root.getAttribute("data-theme") &&
+         window.matchMedia("(prefers-color-scheme: dark)").matches);
+      var next = dark ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem(key, next); } catch (e) {}
+    });
+  })();
+</script>
 <script src="./charts.js"></script>
 <script src="./info.js"></script>
 <script src="./verdict.js"></script>

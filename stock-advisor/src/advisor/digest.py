@@ -13,7 +13,7 @@ def build_digest(capital: float = 1_000_000) -> str:
     from .regime import compute_regime, last_state, record_regime
     from .screener import run_screen
 
-    lines = [f"# 360° Advisor digest — {date.today().isoformat()}", ""]
+    lines = [f"# Astraveda Wealth Management digest — {date.today().isoformat()}", ""]
 
     reading = compute_regime(prev_state=last_state())
     if reading:

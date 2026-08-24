@@ -1,4 +1,4 @@
-"""MCP server exposing the 360° Advisor's engines as verified-data tools.
+"""MCP server exposing the Astraveda Wealth Management engines as verified-data tools.
 
 Design rule: this process reads the advisor's own database and engines. It
 never asks a model to supply a figure, and never fills a gap with a plausible
