@@ -87,9 +87,12 @@
           (d.sectorLabel ? " · " + esc(d.sectorLabel) : "") + "</div>" +
       "</div>" +
       '<div style="text-align:right">' +
-        '<div class="mono" style="font-size:30px;font-weight:500">' + num(q.last) + "</div>" +
-        '<div class="' + (day >= 0 ? "pos" : "neg") + '" style="font-size:13.5px">' +
-          pct(day, 2) + " today</div>" +
+        '<div class="mono" style="font-size:30px;font-weight:500" data-live-ltp="' +
+          esc(d.symbol) + '">' + num(q.last) + "</div>" +
+        '<div style="font-size:13.5px"><span class="' + (day >= 0 ? "pos" : "neg") +
+          '" data-live-chg="' + esc(d.symbol) + '">' + pct(day, 2) + "</span> today</div>" +
+        '<div class="muted" style="font-size:11px;margin-top:3px" data-live-at="' +
+          esc(d.symbol) + '"></div>' +
       "</div>";
     wrap.appendChild(top);
 

@@ -115,11 +115,12 @@
       { weekday:"long", day:"numeric", month:"long", year:"numeric" });
     var pulse = "";
     if (n && n.last != null) {
-      pulse += '<div><div class="k">Nifty 50</div><div class="v">' +
-        num(n.last) + "</div></div>";
+      pulse += '<div><div class="k">Nifty 50</div>' +
+        '<div class="v" data-live-ltp="NIFTY50">' + num(n.last) + "</div></div>";
       if (day != null) {
         pulse += '<div><div class="k">Today</div><div class="v ' +
-          (day >= 0 ? "up" : "down") + '">' + pct(day, 2) + "</div></div>";
+          (day >= 0 ? "up" : "down") + '" data-live-chg="NIFTY50">' +
+          pct(day, 2) + "</div></div>";
       }
     }
     if (S.regime) {
@@ -239,8 +240,9 @@
           var q = x.q, day = q.prevClose ? q.last / q.prevClose - 1 : null;
           return '<tr class="go" data-open="' + esc(q.symbol) + '">' +
             '<td class="sym">' + esc(q.symbol) + "</td>" +
-            '<td class="num">' + num(q.last) + "</td>" +
-            '<td class="num ' + (day >= 0 ? "pos" : "neg") + '">' + pct(day, 2) + "</td>" +
+            '<td class="num" data-live-ltp="' + esc(q.symbol) + '">' + num(q.last) + "</td>" +
+            '<td class="num ' + (day >= 0 ? "pos" : "neg") + '" data-live-chg="' +
+              esc(q.symbol) + '">' + pct(day, 2) + "</td>" +
             '<td class="num ' + (q.mom6m >= 0 ? "pos" : "neg") + '">' + pct(q.mom6m) + "</td>" +
             '<td class="num">' + pct(q.high52 ? q.last / q.high52 - 1 : null) + "</td>" +
             '<td data-spark="' + esc(q.symbol) + '"></td></tr>';
@@ -680,6 +682,28 @@
     });
   }
 
+  /* The tape supplies the current price; the stored series still supplies every
+     indicator, because those need history the tick does not carry. Prices on
+     screen repaint themselves — this only re-renders when the live price has
+     changed something that needs a *decision*, i.e. when a position crosses its
+     exit. Re-rendering on every tick would throw away scroll position and any
+     reasoning panel the reader had opened. */
+  function startTape(symbols) {
+    var LIVE = window.ADV_LIVE;
+    if (!LIVE) return;
+    var watch = symbols.concat(holdings().map(function (p) { return p.symbol; }));
+    LIVE.track(watch.filter(function (v, i) { return watch.indexOf(v) === i; }));
+    LIVE.subscribe(function () {
+      var before = alarmsFor(S.quotes).map(function (a) { return a.pos.symbol; }).join(",");
+      Object.keys(S.quotes).forEach(function (sym) {
+        S.quotes[sym] = LIVE.merge(S.quotes[sym]);
+      });
+      if (S.nifty) S.nifty = LIVE.merge(S.nifty);
+      var after = alarmsFor(S.quotes).map(function (a) { return a.pos.symbol; }).join(",");
+      if (before !== after && current === "home") renderHome();
+    });
+  }
+
   /* ---------------- boot ---------------- */
   getJSON("/api/quotes?symbols=^NSEI").then(function (d) {
     var n = ((d.quotes || []).filter(function (q) { return q.symbol === "^NSEI"; })[0]);
@@ -705,6 +729,7 @@
     .then(function (d) {
       (d.quotes || []).forEach(function (q) { if (!q.error) S.quotes[q.symbol] = q; });
       renderHome();
+      startTape(uniq);
     })
     .catch(function () {
       el("s-home").innerHTML = deskHead() +
