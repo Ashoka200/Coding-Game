@@ -159,6 +159,19 @@
     padding:1px 6px; font-size:10px; color:var(--brand-mute); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
+  /* the broker connection, stated plainly: off, working, or streaming */
+  .kitebtn { font-family:"IBM Plex Sans",sans-serif; font-size:11px; font-weight:600;
+    letter-spacing:.04em; white-space:nowrap; cursor:pointer; border-radius:999px;
+    padding:4px 12px; background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.18); color:var(--brand-mute); }
+  .kitebtn:hover { color:#fff; border-color:var(--gold); }
+  .kitebtn.streaming { background:rgba(74,222,128,.14); border-color:rgba(74,222,128,.5);
+    color:#7EDCAA; }
+  .kitebtn.connecting, .kitebtn.resolving, .kitebtn.reconnecting {
+    background:rgba(201,162,77,.14); border-color:rgba(201,162,77,.5); color:var(--gold-2); }
+  .kitebtn.error, .kitebtn.expired { background:rgba(255,156,138,.14);
+    border-color:rgba(255,156,138,.5); color:#FF9C8A; }
+
   /* a tick that moved — a quarter-second of colour, then gone */
   .tick-up { animation:tickup .7s ease-out; border-radius:3px; }
   .tick-down { animation:tickdown .7s ease-out; border-radius:3px; }
@@ -438,6 +451,7 @@
       <div id="tape" class="tape mut" role="status" title="Click to pause the tape">
         <span class="dot"></span><span class="t">Connecting…</span>
       </div>
+      <button id="kitebtn" class="kitebtn off" type="button">Connect Zerodha</button>
     </div>
   </div>
 </header>
@@ -481,6 +495,7 @@
 <script src="./deepdive.js"></script>
 <script src="./company.js"></script>
 <script src="./live.js"></script>
+<script src="./kite.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
