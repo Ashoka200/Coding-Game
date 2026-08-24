@@ -130,6 +130,45 @@
     font-size:14px; line-height:1; flex:0 0 34px; }
   #theme:hover { background:rgba(255,255,255,.14); border-color:var(--gold); }
 
+  /* ---- the tape: live index levels and the honest status of the feed ---- */
+  .tapebar { background:rgba(0,0,0,.22); border-top:1px solid rgba(255,255,255,.07); }
+  .twrap { max-width:1180px; margin:0 auto; padding:7px 26px; display:flex;
+    align-items:center; gap:18px; }
+  .indexstrip { display:flex; gap:22px; overflow-x:auto; scrollbar-width:none;
+    flex:1; min-width:0; }
+  .indexstrip::-webkit-scrollbar { display:none; }
+  .indexstrip .ix { display:flex; align-items:baseline; gap:8px; white-space:nowrap;
+    font-size:12.5px; }
+  .indexstrip .ix b { color:var(--brand-mute); font-weight:600; font-size:10px;
+    letter-spacing:.13em; text-transform:uppercase; }
+  .indexstrip .ix .v { font-family:"IBM Plex Mono",monospace; color:#fff;
+    font-variant-numeric:tabular-nums; }
+  .indexstrip .ix .c { font-family:"IBM Plex Mono",monospace; font-size:11.5px; }
+  .indexstrip .ix .c.pos { color:#7EDCAA; } .indexstrip .ix .c.neg { color:#FF9C8A; }
+
+  .tape { display:flex; align-items:center; gap:8px; cursor:pointer;
+    font-size:11.5px; color:var(--brand-mute); white-space:nowrap;
+    font-family:"IBM Plex Mono",monospace; }
+  .tape .dot { width:7px; height:7px; border-radius:50%; background:var(--brand-mute);
+    flex:0 0 7px; }
+  .tape.up .dot { background:#4ADE80; animation:pulse 2s ease-in-out infinite; }
+  .tape.up .t { color:#7EDCAA; }
+  .tape.down .dot { background:#FF9C8A; } .tape.down .t { color:#FF9C8A; }
+  .tape.warn .dot { background:var(--gold); } .tape.warn .t { color:var(--gold-2); }
+  .tape .src { border:1px solid rgba(255,255,255,.16); border-radius:4px;
+    padding:1px 6px; font-size:10px; color:var(--brand-mute); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* a tick that moved — a quarter-second of colour, then gone */
+  .tick-up { animation:tickup .7s ease-out; border-radius:3px; }
+  .tick-down { animation:tickdown .7s ease-out; border-radius:3px; }
+  @keyframes tickup { from { background:var(--up); color:#fff; } to { background:transparent; } }
+  @keyframes tickdown { from { background:var(--down); color:#fff; } to { background:transparent; } }
+  @media (prefers-reduced-motion:reduce){
+    .tick-up,.tick-down{animation:none}
+    .tape.up .dot{animation:none}
+  }
+
   main { max-width:1180px; margin:0 auto; padding:32px 26px 90px; }
   .screen { display:none; }
   .screen.on { display:block; animation:rise .28s ease-out; }
@@ -165,7 +204,8 @@
     color:var(--brand-mute); font-weight:600; }
   .deskhead .pulse .v { font-family:"IBM Plex Mono",monospace; font-size:21px;
     font-variant-numeric:tabular-nums; color:#fff; margin-top:3px; }
-  .deskhead .pulse .v.up { color:#7EDCAA; } .deskhead .pulse .v.down { color:#FF9C8A; }
+  .deskhead .pulse .v.up, .deskhead .pulse .v.pos { color:#7EDCAA; }
+  .deskhead .pulse .v.down, .deskhead .pulse .v.neg { color:#FF9C8A; }
   @media (max-width:760px){ .deskhead { padding:22px; } .deskhead h1 { font-size:26px; } }
 
   /* ---- surfaces ---- */
@@ -360,6 +400,7 @@
     .hwrap { flex-wrap:wrap; gap:12px; padding:12px 18px; }
     .search { margin-left:0; width:100%; }
     .search input { flex:1; width:auto; }
+    .twrap { padding:7px 18px; gap:12px; }
     main { padding:24px 18px 70px; }
     h1 { font-size:26px; }
   }
@@ -389,6 +430,14 @@
              autocomplete="off" aria-label="Look up a company">
       <datalist id="symlist"></datalist>
       <button id="theme" type="button" aria-label="Switch between light and dark">◐</button>
+    </div>
+  </div>
+  <div class="tapebar">
+    <div class="twrap">
+      <div id="indexstrip" class="indexstrip"></div>
+      <div id="tape" class="tape mut" role="status" title="Click to pause the tape">
+        <span class="dot"></span><span class="t">Connecting…</span>
+      </div>
     </div>
   </div>
 </header>
@@ -431,6 +480,7 @@
 <script src="./verdict.js"></script>
 <script src="./deepdive.js"></script>
 <script src="./company.js"></script>
+<script src="./live.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
