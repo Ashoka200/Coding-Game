@@ -30,6 +30,8 @@
     servedAt: null,
     paused: false,
     speed: "normal",
+    feedMode: "http",            // "http" polling, or "websocket" when a broker streams
+    feedSource: null,
     ok: null,                    // did the most recent poll return prices?
   };
 
@@ -40,6 +42,10 @@
     if (!L.market.live) {
       return { dot: "mut", text: L.market.state === "weekend" ? "Weekend — last close"
                : "Closed — last close" };
+    }
+    if (L.feedMode === "websocket") {
+      return { dot: "up", text: (L.market.state === "pre_open" ? "Pre-open" : "Streaming") +
+               " · every tick" };
     }
     if (L.ok === false) return { dot: "down", text: "Feed unavailable" };
     var delayed = Object.keys(L.last).some(function (s) { return L.last[s].delayed; });
@@ -120,6 +126,10 @@
         var got = 0;
         (d.quotes || []).forEach(function (q) {
           if (q.error || q.ltp == null) return;
+          // Never overwrite a broker tick with a slower polled snapshot; the
+          // poll exists at this point only to fill symbols the socket lacks.
+          var have = L.last[q.symbol];
+          if (L.feedMode === "websocket" && have && have.exchange === "Zerodha") { got++; return; }
           L.last[q.symbol] = q; got++;
         });
         L.indices = d.indices || L.indices;
@@ -143,7 +153,11 @@
     clearTimeout(timer);
     if (L.paused) return;
     var wait;
-    if (!L.market) wait = INTERVALS[L.speed];
+    // With a broker socket attached the poll is no longer how prices arrive.
+    // It stays alive only to keep the market clock honest and to price anything
+    // the broker did not return a token for — once every few minutes is plenty.
+    if (L.feedMode === "websocket") wait = 5 * 60000;
+    else if (!L.market) wait = INTERVALS[L.speed];
     else if (L.market.live) wait = INTERVALS[L.speed];
     else {
       var toOpen = (L.market.secondsToNextChange || 600) * 1000;
@@ -165,6 +179,30 @@
         (up ? "▲" : "▼") + " " + Math.abs((i.pChange || 0) * 100).toFixed(2) + "%</span></span>";
     }).join("");
   }
+
+  /* ---------- ticks pushed in from a broker socket ---------- */
+  /* A streamed tick is strictly better than a polled one: it is the broker's
+     own feed, it carries the exchange timestamp, and it costs no request. It
+     therefore overwrites whatever polling last wrote, never the other way
+     round — see the guard in poll(). */
+  L.pushTicks = function (quotes, source) {
+    if (!quotes || !quotes.length) return;
+    quotes.forEach(function (q) { if (q && q.ltp != null) L.last[q.symbol] = q; });
+    L.feedSource = source || L.feedSource;
+    L.ok = true;
+    paintPrices(); paintStatus(); paintIndex();
+    subs.forEach(function (fn) { try { fn(L); } catch (e) {} });
+  };
+
+  /* A feed announcing itself. Only a genuinely streaming socket takes over. */
+  L.onFeedStatus = function (name, state) {
+    var streaming = state && state.status === "streaming";
+    var was = L.feedMode;
+    L.feedMode = streaming ? "websocket" : "http";
+    L.feedSource = streaming ? name : null;
+    if (was !== L.feedMode) { paintStatus(); schedule(); }
+    else paintStatus();
+  };
 
   /* ---------- public surface ---------- */
   L.track = function (syms) {

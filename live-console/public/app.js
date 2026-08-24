@@ -692,7 +692,16 @@
     var LIVE = window.ADV_LIVE;
     if (!LIVE) return;
     var watch = symbols.concat(holdings().map(function (p) { return p.symbol; }));
-    LIVE.track(watch.filter(function (v, i) { return watch.indexOf(v) === i; }));
+    var uniqWatch = watch.filter(function (v, i) { return watch.indexOf(v) === i; });
+    LIVE.track(uniqWatch);
+
+    // If a Zerodha session is already in hand, stream instead of poll. The
+    // indices come along so the desk note ticks with everything else.
+    var K = window.ADV_KITE;
+    if (K) {
+      K.setSymbols(uniqWatch.concat(["NIFTY50", "BANKNIFTY"]));
+      if (K.have()) K.connect();
+    }
     LIVE.subscribe(function () {
       var before = alarmsFor(S.quotes).map(function (a) { return a.pos.symbol; }).join(",");
       Object.keys(S.quotes).forEach(function (sym) {
