@@ -43,6 +43,12 @@
       return { dot: "mut", text: L.market.state === "weekend" ? "Weekend — last close"
                : "Closed — last close" };
     }
+    var anyExt = Object.keys(L.last).some(function (s) { return L.last[s].extended; });
+    if (anyExt && L.market && L.market.extended) {
+      return { dot: "warn",
+               text: (L.market.state === "pre_market" ? "Pre-market" : "After hours") +
+                     " · thin" };
+    }
     if (L.feedMode === "websocket") {
       return { dot: "up", text: (L.market.state === "pre_open" ? "Pre-open" : "Streaming") +
                " · every tick" };
@@ -50,8 +56,11 @@
     if (L.ok === false) return { dot: "down", text: "Feed unavailable" };
     var delayed = Object.keys(L.last).some(function (s) { return L.last[s].delayed; });
     if (delayed) return { dot: "warn", text: "Delayed feed" };
+    var M2 = window.ADV_MARKETS;
+    var clock = L.market.ist || L.market.et || "";
+    var zone = L.market.zone || (M2 ? M2.current().clockLabel : "IST");
     return { dot: "up", text: (L.market.state === "pre_open" ? "Pre-open" : "Live") +
-             " · " + (L.market.ist || "") + " IST" };
+             " · " + clock + " " + zone };
   }
 
   function paintStatus() {
@@ -120,7 +129,11 @@
     var syms = symbols();
     if (!syms.length) return Promise.resolve();
     inFlight = true;
-    return fetch("/api/live?index=1&symbols=" + encodeURIComponent(syms.slice(0, 60).join(",")))
+    // Which feed to poll is the market's decision, not the tape's.
+    var M = window.ADV_MARKETS;
+    var url = M ? M.current().api.live(encodeURIComponent(syms.slice(0, 60).join(",")))
+                : "/api/live?index=1&symbols=" + encodeURIComponent(syms.slice(0, 60).join(","));
+    return fetch(url)
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var got = 0;

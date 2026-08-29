@@ -19,11 +19,18 @@
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; });
   }
+  /* Money and digit grouping follow the market on screen: rupees in lakh/crore
+     grouping, dollars in thousands. The name `inr` is kept because every screen
+     already calls it; what it actually means is "money, in the current market". */
   function inr(n, d) {
+    var M = window.ADV_MARKETS;
+    if (M) return M.money(n, d);
     return n == null || isNaN(n) ? "—" : "₹" + Number(n).toLocaleString("en-IN",
       { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: d == null ? 0 : d });
   }
   function num(n, d) {
+    var M = window.ADV_MARKETS;
+    if (M) return M.number(n, d);
     return n == null || isNaN(n) ? "—" : Number(n).toLocaleString("en-IN",
       { maximumFractionDigits: d == null ? 2 : d, minimumFractionDigits: d == null ? 2 : d });
   }

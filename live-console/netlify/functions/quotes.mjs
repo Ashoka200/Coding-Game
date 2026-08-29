@@ -61,8 +61,12 @@ function fromSeries(symbol, s) {
   };
 }
 
-async function fetchOne(symbol) {
-  const yahoo = symbol.startsWith("^") || symbol.includes(".") ? symbol : symbol + ".NS";
+async function fetchOne(symbol, market) {
+  // Indian tickers need the .NS suffix; US tickers are already Yahoo's own
+  // symbols. Indices and anything already carrying an exchange suffix pass
+  // through untouched in both markets.
+  const bare = symbol.startsWith("^") || symbol.includes(".");
+  const yahoo = bare ? symbol : market === "us" ? symbol : symbol + ".NS";
   const url =
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahoo)}` +
     `?range=1y&interval=1d`;
@@ -129,6 +133,7 @@ async function fetchOne(symbol) {
 
 export default async (req) => {
   const url = new URL(req.url);
+  const market = (url.searchParams.get("market") || "in").toLowerCase();
   const raw = (url.searchParams.get("symbols") || "").toUpperCase();
   const symbols = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, MAX_SYMBOLS);
   if (!symbols.length) return Response.json({ error: "no symbols" }, { status: 400 });
@@ -137,20 +142,22 @@ export default async (req) => {
   }
 
   // If the store is empty, start filling it — without delaying this request.
-  maybeAutoStart().catch(() => {});
+  if (market !== "us") maybeAutoStart().catch(() => {});
 
   try {
     const quotes = await Promise.all(symbols.map(async (sym) => {
       // Stored history first: it is deeper (10y) and does not depend on the
       // upstream answering right now.
       try {
-        const stored = await getSeries(sym);
+        // The cloud store holds the Indian universe. A US ticker must never be
+        // served from it — same letters can name a different company.
+        const stored = market === "us" ? null : await getSeries(sym);
         if (stored) {
           const computed = fromSeries(sym, stored);
           if (computed) return computed;
         }
       } catch { /* store unavailable — fall through to a live fetch */ }
-      const live = await fetchOne(sym);
+      const live = await fetchOne(sym, market);
       return live.error ? live : { ...live, source: "live fetch" };
     }));
     return Response.json({ quotes }, {

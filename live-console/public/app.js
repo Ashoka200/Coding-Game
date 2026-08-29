@@ -8,11 +8,10 @@
   var C = window.ADV_CHARTS;
   var h = U.h, esc = U.esc, inr = U.inr, num = U.num, pct = U.pct;
 
-  var UNIVERSE = ["RELIANCE","TCS","HDFCBANK","ICICIBANK","INFY","LT","BHARTIARTL",
-    "ITC","SBIN","TITAN","SUNPHARMA","AXISBANK","MARUTI","ASIANPAINT","BAJFINANCE",
-    "HCLTECH","ULTRACEMCO","NESTLEIND","KOTAKBANK","TATAMOTORS","TATASTEEL","WIPRO"];
-  var CORE = [{ symbol:"NIFTYBEES", desc:"Nifty 50 index fund", share:0.70 },
-              { symbol:"JUNIORBEES", desc:"Nifty Next 50 index fund", share:0.30 }];
+  var MK = window.ADV_MARKETS;
+  function mkt() { return MK.current(); }
+  function UNIV() { return mkt().universe; }
+  function CORE_() { return mkt().core; }
   var PROFILES = {
     careful:   { mix:[0.70,0.15,0.15], maxPos:0.05, stopMult:2.5, names:4 },
     balanced:  { mix:[0.60,0.30,0.10], maxPos:0.08, stopMult:2.0, names:5 },
@@ -24,11 +23,11 @@
   function el(id) { return document.getElementById(id); }
   function getJSON(u) { return fetch(u).then(function (r) { return r.json(); }); }
   function holdings() {
-    try { return JSON.parse(localStorage.getItem("holdings") || "[]"); }
+    try { return JSON.parse(localStorage.getItem(MK.holdingsKey()) || "[]"); }
     catch (e) { return []; }
   }
   function startCapital() {
-    try { return +localStorage.getItem("startCapital") || 0; } catch (e) { return 0; }
+    try { return +localStorage.getItem(MK.capitalKey()) || 0; } catch (e) { return 0; }
   }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
 
@@ -78,8 +77,19 @@
   });
   el("brand").addEventListener("click", function () { show("home"); renderHome(); });
 
+  /* The market switch. Changing market changes every number, every endpoint,
+     the currency, the clock and the broker adapter — so rather than unpick all
+     of that in place, the page reloads. Nothing is lost: holdings and the
+     chosen market both live in localStorage. */
+  document.querySelectorAll("[data-mkt]").forEach(function (b) {
+    b.classList.toggle("on", b.dataset.mkt === MK.id());
+    b.addEventListener("click", function () {
+      if (MK.set(b.dataset.mkt)) window.location.reload();
+    });
+  });
+
   var list = el("symlist");
-  UNIVERSE.forEach(function (s) {
+  UNIV().forEach(function (s) {
     var o = document.createElement("option"); o.value = s; list.appendChild(o);
   });
   el("lookup").addEventListener("keydown", function (ev) {
@@ -115,11 +125,13 @@
       { weekday:"long", day:"numeric", month:"long", year:"numeric" });
     var pulse = "";
     if (n && n.last != null) {
-      pulse += '<div><div class="k">Nifty 50</div>' +
-        '<div class="v" data-live-ltp="NIFTY50">' + num(n.last) + "</div></div>";
+      var us = MK.id() === "us";
+      var benchKey = us ? "^GSPC" : "NIFTY50";
+      pulse += '<div><div class="k">' + (us ? "S&amp;P 500" : "Nifty 50") + "</div>" +
+        '<div class="v" data-live-ltp="' + benchKey + '">' + num(n.last) + "</div></div>";
       if (day != null) {
         pulse += '<div><div class="k">Today</div><div class="v ' +
-          (day >= 0 ? "up" : "down") + '" data-live-chg="NIFTY50">' +
+          (day >= 0 ? "up" : "down") + '" data-live-chg="' + benchKey + '">' +
           pct(day, 2) + "</div></div>";
       }
     }
@@ -130,7 +142,8 @@
     return '<div class="deskhead"><div class="watermark" aria-hidden="true">' +
       '<svg viewBox="0 0 24 24"><path fill="#C9A24D" d="M12 1.6l2.3 6.6 6.9.3-5.4 4.3' +
       ' 1.9 6.7L12 15.7 6.3 19.5l1.9-6.7-5.4-4.3 6.9-.3z"/></svg></div>' +
-      '<div class="left"><div class="eyebrow">Astraveda desk note</div>' +
+      '<div class="left"><div class="eyebrow">Astraveda desk note · ' +
+      esc(mkt().label) + "</div>" +
       "<h1>Today</h1>" + '<div class="when">' + esc(when) + "</div></div>" +
       (pulse ? '<div class="pulse">' + pulse + "</div>" : "") + "</div>";
   }
@@ -215,7 +228,7 @@
     }
 
     // 4. today's ideas — only when the market allows it
-    var scored = UNIVERSE.map(function (s) { return S.quotes[s]; }).filter(Boolean)
+    var scored = UNIV().map(function (s) { return S.quotes[s]; }).filter(Boolean)
       .map(function (q) { return { q: q, stage: stageOf(q) }; })
       .filter(function (x) { return x.stage === 2; })
       .sort(function (a, b) { return (b.q.mom6m || 0) - (a.q.mom6m || 0); })
@@ -249,7 +262,19 @@
         }).join("") + "</tbody></table></div>";
     }
 
-    // 5. something to read
+    // 5. investing abroad has rules that change the answer
+    var notes = mkt().notes || [];
+    if (notes.length) {
+      out += sectionHead("Before you invest abroad",
+        "what the money costs to send, and what the gain nets");
+      out += '<div class="card"><div class="notes">' + notes.map(function (n) {
+        return "<div><h3>" + esc(n.k) + "</h3><p>" + esc(n.t) + "</p></div>";
+      }).join("") + "</div>" +
+        (mkt().disclaimer ? '<p class="muted" style="margin:14px 0 0">' +
+          esc(mkt().disclaimer) + "</p>" : "") + "</div>";
+    }
+
+    // 6. something to read
     out += sectionHead("Worth reading", "market context");
     out += '<div class="card" id="marketNews"><p class="muted">' +
       '<span class="spin"></span>Loading the market brief…</p></div>';
@@ -294,7 +319,8 @@
   }
 
   function loadMarketNews() {
-    getJSON("/api/news?market=1").then(function (d) {
+    getJSON("/api/news?market=1" + (MK.id() === "us" ? "&region=us" : ""))
+      .then(function (d) {
       var box = el("marketNews");
       if (!box) return;
       if (d.error || !(d.items || []).length) {
@@ -323,16 +349,19 @@
       "</span>Gathering everything known about this company…</p>";
 
     Promise.all([
-      getJSON("/api/quotes?symbols=" + encodeURIComponent(symbol)),
-      getJSON("/api/history?symbol=" + encodeURIComponent(symbol) + "&range=5y")
+      getJSON(mkt().api.quotes(encodeURIComponent(symbol))),
+      getJSON("/api/history?symbol=" + encodeURIComponent(symbol) + "&range=5y" +
+              (MK.id() === "us" ? "&market=us" : ""))
         .catch(function () { return null; }),
-      getJSON("/api/fundamentals?symbols=" + encodeURIComponent(symbol))
+      getJSON(mkt().api.fund(encodeURIComponent(symbol)))
         .catch(function () { return null; }),
-      getJSON("/api/news?symbol=" + encodeURIComponent(symbol))
+      getJSON(mkt().api.news(encodeURIComponent(symbol)))
         .catch(function () { return null; }),
-      getJSON("/api/deepdive?symbol=" + encodeURIComponent(symbol))
+      (mkt().api.deep ? getJSON(mkt().api.deep(encodeURIComponent(symbol)))
+                      : Promise.resolve(null))
         .catch(function () { return null; }),
-      getJSON("/api/ownership?symbol=" + encodeURIComponent(symbol))
+      (mkt().api.own ? getJSON(mkt().api.own(encodeURIComponent(symbol)))
+                     : Promise.resolve(null))
         .catch(function () { return null; }),
     ]).then(function (res) {
       var q = ((res[0] || {}).quotes || []).filter(function (x) {
@@ -547,7 +576,7 @@
       return;
     }
     out.innerHTML = '<p class="muted"><span class="spin"></span>Building…</p>';
-    getJSON("/api/quotes?symbols=" + CORE.map(function (c) { return c.symbol; }).join(","))
+    getJSON(mkt().api.quotes(CORE_().map(function (c) { return c.symbol; }).join(",")))
       .then(function (d) {
         var qm = {};
         (d.quotes || []).forEach(function (q) { if (!q.error) qm[q.symbol] = q; });
@@ -557,7 +586,7 @@
                      "stays in cash and only the index core is bought.");
           mix = [Math.min(mix[0], 0.6), 0, 1 - Math.min(mix[0], 0.6)];
         }
-        CORE.forEach(function (c) {
+        CORE_().forEach(function (c) {
           var q = qm[c.symbol];
           if (!q) { notes.push("No price for " + c.symbol + " — left out."); return; }
           var qty = Math.floor(S.amount * mix[0] * c.share / q.last);
@@ -565,7 +594,7 @@
                                     price:q.last, value:qty * q.last, stop:null });
         });
         if (mix[1] > 0) {
-          var picks = UNIVERSE.map(function (s) { return S.quotes[s]; }).filter(Boolean)
+          var picks = UNIV().map(function (s) { return S.quotes[s]; }).filter(Boolean)
             .filter(function (q) { return stageOf(q) === 2; })
             .sort(function (a, b) { return (b.mom6m || 0) - (a.mom6m || 0); })
             .slice(0, cfg.names);
@@ -609,9 +638,9 @@
           '<button class="ghost" id="csvPlan">Download as CSV</button></div>';
         el("savePlan").addEventListener("click", function () {
           try {
-            localStorage.setItem("holdings", JSON.stringify(lines.map(function (l) {
+            localStorage.setItem(MK.holdingsKey(), JSON.stringify(lines.map(function (l) {
               return { symbol:l.symbol, qty:l.qty, cost:l.price, stop:l.stop }; })));
-            localStorage.setItem("startCapital", String(S.amount));
+            localStorage.setItem(MK.capitalKey(), String(S.amount));
             renderPortfolio(); show("portfolio");
           } catch (e) { alert("Could not save in this browser."); }
         });
@@ -695,12 +724,16 @@
     var uniqWatch = watch.filter(function (v, i) { return watch.indexOf(v) === i; });
     LIVE.track(uniqWatch);
 
-    // If a Zerodha session is already in hand, stream instead of poll. The
-    // indices come along so the desk note ticks with everything else.
+    // Zerodha streams Indian instruments and nothing else. On the US desk the
+    // socket is disconnected rather than left pointed at the wrong exchange.
     var K = window.ADV_KITE;
     if (K) {
-      K.setSymbols(uniqWatch.concat(["NIFTY50", "BANKNIFTY"]));
-      if (K.have()) K.connect();
+      if (MK.id() === "in") {
+        K.setSymbols(uniqWatch.concat(["NIFTY50", "BANKNIFTY"]));
+        if (K.have()) K.connect();
+      } else {
+        K.disconnect();
+      }
     }
     LIVE.subscribe(function () {
       var before = alarmsFor(S.quotes).map(function (a) { return a.pos.symbol; }).join(",");
@@ -714,8 +747,9 @@
   }
 
   /* ---------------- boot ---------------- */
-  getJSON("/api/quotes?symbols=^NSEI").then(function (d) {
-    var n = ((d.quotes || []).filter(function (q) { return q.symbol === "^NSEI"; })[0]);
+  var BENCH = MK.id() === "us" ? "^GSPC" : "^NSEI";
+  getJSON(mkt().api.quotes(encodeURIComponent(BENCH))).then(function (d) {
+    var n = ((d.quotes || []).filter(function (q) { return q.symbol === BENCH; })[0]);
     S.nifty = n;
     if (n && n.sma200 != null) {
       S.riskOn = n.last > n.sma200;
@@ -732,9 +766,9 @@
     }
   }).catch(function () { el("regime").textContent = "Market data unavailable"; });
 
-  var all = UNIVERSE.concat(holdings().map(function (p) { return p.symbol; }));
+  var all = UNIV().concat(holdings().map(function (p) { return p.symbol; }));
   var uniq = all.filter(function (v, i) { return all.indexOf(v) === i; });
-  getJSON("/api/quotes?symbols=" + encodeURIComponent(uniq.slice(0, 25).join(",")))
+  getJSON(mkt().api.quotes(encodeURIComponent(uniq.slice(0, 25).join(","))))
     .then(function (d) {
       (d.quotes || []).forEach(function (q) { if (!q.error) S.quotes[q.symbol] = q; });
       renderHome();
