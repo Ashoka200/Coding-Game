@@ -96,7 +96,10 @@ localStorage.setItem("holdings", JSON.stringify([
 localStorage.setItem("startCapital", "1000000");
 
 // ---- load the app ----
-for (const f of ["charts.js","info.js","verdict.js","deepdive.js","company.js","app.js"]) {
+// markets.js first: it owns the universe, the currency and the endpoints that
+// everything below reads at load time.
+for (const f of ["markets.js","charts.js","info.js","verdict.js","deepdive.js",
+                 "company.js","app.js"]) {
   eval(fs.readFileSync("public/" + f, "utf8"));
 }
 await new Promise(r => setTimeout(r, 60));
