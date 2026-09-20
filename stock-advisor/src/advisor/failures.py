@@ -274,7 +274,18 @@ CHECKS = (quality_trap, value_trap, cyclical_peg_illusion,
 
 
 def run_all(f: dict) -> list[FailureMode]:
-    return [check(f) for check in CHECKS]
+    """Run every check, on derived facts.
+
+    The derive step is not optional and its absence was a real bug: PEG is
+    computed by masters.derive rather than supplied by any data source, so a
+    check reading f["peg"] against raw facts could never fire. The cyclical PEG
+    illusion — the one failure mode aimed squarely at metals and miners at peak
+    margins — was silently unreachable for exactly the companies it exists to
+    catch.
+    """
+    from .masters import derive
+    facts = derive(f)
+    return [check(facts) for check in CHECKS]
 
 
 def discount_lenses(f: dict, verdicts: list) -> dict:
