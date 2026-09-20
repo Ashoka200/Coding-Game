@@ -416,3 +416,142 @@ def grade_trade(entry: float, target: float, stop: float,
                     "workable with the caveats below" if len(flags) == 1 else
                     "the statistics do not support this plan as drawn"),
     }
+
+
+# --------------------------------------------------------------------------
+# keeping a backtest honest
+# --------------------------------------------------------------------------
+EULER = 0.5772156649015329
+
+
+def expected_max_sharpe(trials: int, sharpe_variance: float = 1.0) -> float:
+    """The best Sharpe you would expect from `trials` worthless strategies.
+
+    This is the number that makes most published backtests evaporate. Try two
+    hundred variations of a rule on the same history and the best of them will
+    show a Sharpe near 1 through luck alone — so "the backtest showed 1.2" is
+    not evidence until it is compared against this.
+    """
+    if trials < 2:
+        return 0.0
+    from statistics import NormalDist
+    nd = NormalDist()
+    a = nd.inv_cdf(1 - 1 / trials)
+    b = nd.inv_cdf(1 - 1 / (trials * math.e))
+    return math.sqrt(sharpe_variance) * ((1 - EULER) * a + EULER * b)
+
+
+def _sharpe_estimator_variance(per_period_sharpe: float, n: int) -> float:
+    """Variance of a Sharpe estimate from n observations, per period.
+
+    Needed because the multiple-testing benchmark is a spread of *estimates*,
+    not of true values. Ignoring it makes the benchmark meaninglessly small.
+    """
+    return (1 + (per_period_sharpe ** 2) / 2) / max(1, n)
+
+
+def deflated_sharpe(annual_sharpe: float, n_observations: int, trials: int,
+                    periods_per_year: int = TRADING_DAYS,
+                    skew: float = 0.0, excess_kurtosis: float = 0.0,
+                    sharpe_variance: float | None = None) -> dict:
+    """Probability an observed Sharpe is real, after paying for the search.
+
+    Takes the ANNUALISED Sharpe, because that is the number anyone actually
+    quotes, and converts internally — the underlying statistic is defined on
+    per-period returns and mixing the two by hand is the classic way to get a
+    confident, wrong answer out of this formula.
+
+    Two corrections, both of which ordinary backtesting ignores. First,
+    multiple testing: the benchmark is not zero but the best a worthless
+    strategy would have produced across however many variants were tried.
+    Second, the shape of returns: Sharpe assumes normality, and a strategy of
+    steady small gains and rare large losses flatters itself precisely because
+    of the risk that has not arrived yet. Negative skew and fat tails both
+    widen the bar.
+
+    Bailey and Lopez de Prado's deflated Sharpe ratio. Below 0.95 the honest
+    reading is that the result has not cleared the bar.
+    """
+    if n_observations < 2:
+        return {"deflated_sharpe": None, "why": "not enough observations"}
+    scale = math.sqrt(periods_per_year)
+    sr = annual_sharpe / scale                       # per period, as the maths requires
+    var = (sharpe_variance if sharpe_variance is not None
+           else _sharpe_estimator_variance(sr, n_observations))
+    benchmark = expected_max_sharpe(trials, var)
+
+    denom = 1 - skew * sr + (excess_kurtosis / 4.0) * sr ** 2
+    if denom <= 0:
+        return {"deflated_sharpe": None,
+                "why": "return shape too distorted for the statistic to mean anything"}
+    z = (sr - benchmark) * math.sqrt(n_observations - 1) / math.sqrt(denom)
+    p = _norm_cdf(z)
+    return {
+        "deflated_sharpe": p,
+        "observed_annual_sharpe": annual_sharpe,
+        "benchmark_annual_from_luck": benchmark * scale,
+        "trials_paid_for": trials,
+        "observations": n_observations,
+        "passes": p >= 0.95,
+        "reading": ("survives the multiple-testing correction" if p >= 0.95 else
+                    "does not clear the bar once the search is paid for — this is "
+                    "what an overfit backtest looks like"),
+    }
+
+
+def minimum_track_record(annual_sharpe: float, target_annual_sharpe: float = 0.0,
+                         periods_per_year: int = TRADING_DAYS,
+                         skew: float = 0.0, excess_kurtosis: float = 0.0,
+                         confidence: float = 0.95) -> dict | None:
+    """How long a record must be before this Sharpe could be believed.
+
+    The question nobody asks of a six-month live run: is it even long enough to
+    tell from zero? Usually not — and knowing the answer in advance stops a good
+    strategy being abandoned after one bad quarter and a lucky one being scaled
+    up after a good one.
+    """
+    if annual_sharpe <= target_annual_sharpe:
+        return None
+    from statistics import NormalDist
+    scale = math.sqrt(periods_per_year)
+    sr, target = annual_sharpe / scale, target_annual_sharpe / scale
+    z = NormalDist().inv_cdf(confidence)
+    denom = 1 - skew * sr + (excess_kurtosis / 4.0) * sr ** 2
+    if denom <= 0:
+        return None
+    n = 1 + denom * (z / (sr - target)) ** 2
+    return {"observations": n, "years": n / periods_per_year,
+            "annual_sharpe": annual_sharpe, "confidence": confidence}
+
+
+def bootstrap_ci(values: list[float], statistic=None, confidence: float = 0.95,
+                 resamples: int = 2000, seed: int = 11) -> dict | None:
+    """Confidence interval for any statistic, without assuming a distribution.
+
+    Resampling makes no claim about normality, which matters because returns are
+    not normal. Used on a backtest's trade results it answers the only question
+    that counts: given this many trades, how wide is the range the true edge
+    could plausibly sit in? For most retail backtests the honest answer includes
+    zero, and an interval that includes zero is not an edge.
+    """
+    n = len(values)
+    if n < 20:
+        return None
+    stat = statistic or (lambda xs: sum(xs) / len(xs))
+    rng = random.Random(seed)
+    point = stat(values)
+    draws = []
+    for _ in range(resamples):
+        sample = [values[rng.randrange(n)] for _ in range(n)]
+        draws.append(stat(sample))
+    draws.sort()
+    lo = draws[int((1 - confidence) / 2 * resamples)]
+    hi = draws[min(resamples - 1, int((1 + confidence) / 2 * resamples))]
+    return {
+        "point": point, "low": lo, "high": hi,
+        "confidence": confidence, "resamples": resamples,
+        "includes_zero": lo <= 0 <= hi,
+        "reading": ("the interval includes zero — this is consistent with having "
+                    "no edge at all" if lo <= 0 <= hi else
+                    "the whole interval sits on one side of zero"),
+    }
