@@ -313,3 +313,109 @@ export function deflatedSharpe(perPeriodSharpe, nObs, trials, periodsPerYear) {
       : "does not clear the bar once the search is paid for",
   };
 }
+
+/* ---------------- combining signals ----------------
+   The question the ceiling mathematics actually needs answered, and the one
+   number in this system that has been a guess since it was written. */
+
+/** Standardise one date's scores across the cross-section.
+ *  Raw signals are not comparable — momentum is in units of return, volatility
+ *  in units of standard deviation — so averaging them directly would weight by
+ *  whichever happens to have the larger spread. */
+export function zscoreRow(row) {
+  const vals = Object.values(row).filter((v) => v != null && Number.isFinite(v));
+  const n = vals.length;
+  if (n < 8) return {};
+  const m = vals.reduce((a, b) => a + b, 0) / n;
+  const sd = Math.sqrt(vals.reduce((a, v) => a + (v - m) ** 2, 0) / (n - 1));
+  if (!(sd > 0)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (v == null || !Number.isFinite(v)) continue;
+    // Winsorise at three sigma: one broken data point must not decide a book.
+    out[k] = Math.max(-3, Math.min(3, (v - m) / sd));
+  }
+  return out;
+}
+
+/** Average several signals per date, after standardising each.
+ *  Only dates and symbols every signal scored are kept — filling a gap with a
+ *  neutral zero would let a signal vote on names it could not score. */
+export function combineSignals(...sets) {
+  if (!sets.length) return {};
+  let commonT = new Set(Object.keys(sets[0]).map(Number));
+  for (const s of sets.slice(1)) {
+    const ks = new Set(Object.keys(s).map(Number));
+    commonT = new Set([...commonT].filter((t) => ks.has(t)));
+  }
+  const out = {};
+  for (const t of [...commonT].sort((a, b) => a - b)) {
+    const rows = sets.map((s) => zscoreRow(s[t]));
+    if (rows.some((r) => !Object.keys(r).length)) continue;
+    let syms = new Set(Object.keys(rows[0]));
+    for (const r of rows.slice(1)) syms = new Set([...syms].filter((s) => s in r));
+    if (syms.size < 10) continue;
+    const row = {};
+    for (const s of syms) row[s] = rows.reduce((a, r) => a + r[s], 0) / rows.length;
+    out[t] = row;
+  }
+  return out;
+}
+
+export function correlation(a, b) {
+  const n = Math.min(a.length, b.length);
+  if (n < 8) return null;
+  const x = a.slice(0, n), y = b.slice(0, n);
+  const mx = x.reduce((p, q) => p + q, 0) / n;
+  const my = y.reduce((p, q) => p + q, 0) / n;
+  const vx = x.reduce((p, q) => p + (q - mx) ** 2, 0);
+  const vy = y.reduce((p, q) => p + (q - my) ** 2, 0);
+  if (vx <= 0 || vy <= 0) return null;
+  let cov = 0;
+  for (let i = 0; i < n; i++) cov += (x[i] - mx) * (y[i] - my);
+  return cov / Math.sqrt(vx * vy);
+}
+
+/** What the signals are worth together, measured rather than assumed. */
+export function combinationReport(named, combined = null) {
+  const names = Object.keys(named).filter((n) => named[n].periods >= 8);
+  if (names.length < 2) {
+    return { ok: false, why: "need at least two signals with eight periods each" };
+  }
+  const pairs = {};
+  for (let i = 0; i < names.length; i++) {
+    for (let j = i + 1; j < names.length; j++) {
+      const c = correlation(named[names[i]].periodReturns, named[names[j]].periodReturns);
+      if (c != null) pairs[`${names[i]} + ${names[j]}`] = c;
+    }
+  }
+  const keys = Object.keys(pairs);
+  if (!keys.length) return { ok: false, why: "return streams had no variation" };
+
+  const avgCorr = keys.reduce((a, k) => a + pairs[k], 0) / keys.length;
+  const sharpes = names.map((n) => named[n].sharpe);
+  const avgSharpe = sharpes.reduce((a, b) => a + b, 0) / sharpes.length;
+  const bestSingle = Math.max(...sharpes);
+  const rho = Math.max(0, avgCorr);
+  const k = names.length;
+  const predicted = avgSharpe * Math.sqrt(k / (1 + (k - 1) * rho));
+  const ceiling = rho > 0 ? avgSharpe / Math.sqrt(rho) : Infinity;
+
+  const report = {
+    ok: true, signals: names, pairwiseCorrelation: pairs,
+    averageCorrelation: avgCorr,
+    mostRedundant: keys.reduce((a, b) => (pairs[a] > pairs[b] ? a : b)),
+    mostDiversifying: keys.reduce((a, b) => (pairs[a] < pairs[b] ? a : b)),
+    averageSingleSharpe: avgSharpe,
+    bestSingleSharpe: bestSingle,
+    predictedCombinedSharpe: predicted,
+    ceilingHoweverManySignals: ceiling,
+  };
+  if (combined && combined.periods >= 8) {
+    report.actualCombinedSharpe = combined.sharpe;
+    report.actualCombinedNetAnnual = combined.netAnnual;
+    report.beatBestSingle = combined.sharpe > bestSingle;
+    report.theoryVsActual = combined.sharpe - predicted;
+  }
+  return report;
+}

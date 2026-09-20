@@ -1,9 +1,10 @@
 // The serverless backtest: proved on known worlds, and pinned to the Python
 // original so the two implementations cannot quietly drift apart.
 import fs from "fs";
-import { backtest, buildScores, COSTS, deflatedSharpe, expectedMaxSharpe,
-         oneWay, roundTrip, shuffleTest, SIGNALS,
-         walkForward } from "./netlify/functions/_backtest.mjs";
+import { backtest, buildScores, combinationReport, combineSignals, correlation,
+         COSTS, deflatedSharpe, expectedMaxSharpe, oneWay, roundTrip,
+         shuffleTest, SIGNALS, walkForward,
+         zscoreRow } from "./netlify/functions/_backtest.mjs";
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); c ? pass++ : fail++; };
@@ -109,6 +110,53 @@ ok(once.passes && !many.passes,
    "the same backtest stops being evidence once the search is admitted");
 ok(many.benchmarkAnnualFromLuck > once.benchmarkAnnualFromLuck,
    "and the luck benchmark rises with the count");
+
+/* ---------- 8. combining signals, in parity with Python ---------- */
+const scoresB = Object.fromEntries(
+  Object.entries(fx.scores_b).map(([k, v]) => [Number(k), v]));
+const ec = fx.expected_combination;
+
+const zrow = zscoreRow(scores[Math.min(...Object.keys(scores).map(Number))]);
+ok(Object.keys(zrow).length === Object.keys(ec.zscore_first_row).length,
+   "z-score row has the same shape as Python's");
+ok(Object.entries(ec.zscore_first_row).every(([k, v]) => near(zrow[k], v, 1e-9)),
+   "every z-score matches Python to 1e-9");
+
+const comb = combineSignals(scores, scoresB);
+const rComb = backtest(comb, fx.prices);
+ok(rComb.periods === ec.combined_periods, "combined panel has the same period count");
+ok(near(rComb.sharpe, ec.combined_sharpe, 1e-9),
+   `combined Sharpe matches Python (${rComb.sharpe})`);
+ok(near(rComb.netAnnual, ec.combined_net_annual, 1e-9),
+   "combined net return matches Python");
+
+const rA = backtest(scores, fx.prices), rB = backtest(scoresB, fx.prices);
+ok(near(correlation(rA.periodReturns, rB.periodReturns), ec.correlation_a_b, 1e-9),
+   `measured correlation matches Python (${ec.correlation_a_b.toFixed(6)})`);
+const rep = combinationReport({ a: rA, b: rB }, rComb);
+ok(rep.ok && near(rep.averageCorrelation, ec.average_correlation, 1e-9),
+   "the combination report agrees with Python on average correlation");
+ok(typeof rep.beatBestSingle === "boolean" && "theoryVsActual" in rep,
+   "theory is compared against what actually happened");
+
+/* ---------- 9. combination behaviour ---------- */
+const up = { 10: Object.fromEntries([...Array(20)].map((_, i) => ["S" + i, i])) };
+const down = { 10: Object.fromEntries([...Array(20)].map((_, i) => ["S" + i, -i])) };
+const cancelled = combineSignals(up, down);
+ok(Object.values(cancelled[10]).every((v) => Math.abs(v) < 1e-9),
+   "two exactly opposite signals combine to nothing");
+ok(Object.keys(combineSignals(up, { 99: down[10] })).length === 0,
+   "a date only one signal scored is dropped");
+const partial = { 10: Object.fromEntries([...Array(14)].map((_, i) => ["S" + i, i])) };
+ok(Object.keys(combineSignals(up, partial)[10]).length === 14,
+   "a name one signal could not score is dropped, never filled with zero");
+ok(Object.keys(zscoreRow({ A: 1, B: 2 })).length === 0,
+   "a cross-section too thin to standardise yields nothing");
+ok(zscoreRow(Object.fromEntries([...Array(30)].map((_, i) =>
+   ["S" + i, i === 0 ? 1e9 : 0.01 * i])))["S0"] === 3,
+   "an outlier is clipped at three sigma rather than deciding the book");
+ok(combinationReport({ only: rA }).ok === false,
+   "one signal is not a combination");
 
 console.log("\n" + (fail ? fail + " FAILED" : "all checks passed") + ` (${pass} passed)`);
 process.exit(fail ? 1 : 0);

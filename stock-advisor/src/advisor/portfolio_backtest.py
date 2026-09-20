@@ -374,3 +374,124 @@ def assess(result: BacktestResult, variants_tried: int = 1,
         "interval": ci,
         "verdict": verdict,
     }
+
+
+# --------------------------------------------------------------------------
+# combining signals — the question the ceiling mathematics actually needs
+# --------------------------------------------------------------------------
+def zscore_row(row: dict[str, float]) -> dict[str, float]:
+    """Standardise one date's scores across the cross-section.
+
+    Raw signals are not comparable: a momentum score runs in units of return, a
+    volatility score in units of standard deviation. Averaging them directly
+    would silently weight by whichever happens to have the larger spread. The
+    z-score is what makes "average of the signals" mean what it says.
+    """
+    vals = [v for v in row.values() if v is not None]
+    n = len(vals)
+    if n < 8:
+        return {}
+    m = sum(vals) / n
+    sd = math.sqrt(sum((v - m) ** 2 for v in vals) / (n - 1)) if n > 1 else 0.0
+    if sd <= 0:
+        return {}
+    # Winsorise at three standard deviations: one broken data point should not
+    # decide the whole portfolio.
+    return {k: max(-3.0, min(3.0, (v - m) / sd))
+            for k, v in row.items() if v is not None}
+
+
+def combine_signals(*score_sets: dict[int, dict[str, float]]) -> dict[int, dict[str, float]]:
+    """Average several signals into one, per date, after standardising each.
+
+    Only dates and symbols present in every signal are kept. Filling a gap with
+    a neutral zero would let a signal vote on names it could not score, which is
+    how a combination quietly becomes whichever signal has the best coverage.
+    """
+    if not score_sets:
+        return {}
+    common_t = set(score_sets[0])
+    for s in score_sets[1:]:
+        common_t &= set(s)
+
+    out: dict[int, dict[str, float]] = {}
+    for t in sorted(common_t):
+        rows = [zscore_row(s[t]) for s in score_sets]
+        if any(not r for r in rows):
+            continue
+        symbols = set(rows[0])
+        for r in rows[1:]:
+            symbols &= set(r)
+        if len(symbols) < 10:
+            continue
+        out[t] = {sym: sum(r[sym] for r in rows) / len(rows) for sym in symbols}
+    return out
+
+
+def correlation(a: list[float], b: list[float]) -> float | None:
+    """Pearson correlation of two return streams, aligned from the start."""
+    n = min(len(a), len(b))
+    if n < 8:
+        return None
+    a, b = a[:n], b[:n]
+    ma, mb = sum(a) / n, sum(b) / n
+    va = sum((x - ma) ** 2 for x in a)
+    vb = sum((y - mb) ** 2 for y in b)
+    if va <= 0 or vb <= 0:
+        return None
+    return sum((x - ma) * (y - mb) for x, y in zip(a, b)) / math.sqrt(va * vb)
+
+
+def combination_report(named_results: dict[str, BacktestResult],
+                       combined: BacktestResult | None = None) -> dict:
+    """What the signals are worth together, measured rather than assumed.
+
+    This replaces the guess that has been driving every reachability verdict in
+    this system. The correlation between the signals' own return streams is the
+    number that sets the ceiling, and until now it was 0.35 because 0.35 sounded
+    reasonable.
+    """
+    names = [n for n, r in named_results.items() if r.periods >= 8]
+    if len(names) < 2:
+        return {"ok": False, "why": "need at least two signals with eight periods each"}
+
+    pairs = {}
+    for i, x in enumerate(names):
+        for y in names[i + 1:]:
+            c = correlation(named_results[x].period_returns,
+                            named_results[y].period_returns)
+            if c is not None:
+                pairs[f"{x} + {y}"] = c
+    if not pairs:
+        return {"ok": False, "why": "return streams had no variation to correlate"}
+
+    avg_corr = sum(pairs.values()) / len(pairs)
+    sharpes = [named_results[n].sharpe for n in names]
+    avg_sharpe = sum(sharpes) / len(sharpes)
+    best_single = max(sharpes)
+
+    from .ensemble import combine_sharpe
+    predicted = combine_sharpe(avg_sharpe, len(names), max(0.0, avg_corr))
+
+    report = {
+        "ok": True,
+        "signals": names,
+        "pairwise_correlation": pairs,
+        "average_correlation": avg_corr,
+        "most_redundant": max(pairs, key=pairs.get),
+        "most_diversifying": min(pairs, key=pairs.get),
+        "average_single_sharpe": avg_sharpe,
+        "best_single_sharpe": best_single,
+        "predicted_combined_sharpe": predicted.combined_sharpe,
+        "ceiling_however_many_signals": predicted.ceiling_however_many_signals,
+        "reading": predicted.reading,
+    }
+    if combined is not None and combined.periods >= 8:
+        report["actual_combined_sharpe"] = combined.sharpe
+        report["actual_combined_net_annual"] = combined.net_return_annual
+        report["beat_best_single"] = combined.sharpe > best_single
+        # Theory predicts the combination from correlation alone. A large gap
+        # either way means the assumption of equal, stable pairwise correlation
+        # does not hold — worth knowing before trusting the ceiling.
+        report["theory_vs_actual"] = combined.sharpe - predicted.combined_sharpe
+    return report
