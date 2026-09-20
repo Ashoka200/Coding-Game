@@ -98,7 +98,7 @@ localStorage.setItem("startCapital", "1000000");
 // ---- load the app ----
 // markets.js first: it owns the universe, the currency and the endpoints that
 // everything below reads at load time.
-for (const f of ["markets.js","charts.js","info.js","verdict.js","deepdive.js",
+for (const f of ["markets.js","stats.js","charts.js","info.js","verdict.js","deepdive.js",
                  "company.js","app.js"]) {
   eval(fs.readFileSync("public/" + f, "utf8"));
 }
