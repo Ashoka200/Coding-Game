@@ -3,8 +3,9 @@ are easy to state wrongly and expensive to get wrong."""
 import math
 
 from advisor.stats import (
-    barrier_probability, describe_returns, feasible_target, grade_trade,
-    kelly_fraction, minimum_safe_stop, noise_stop_probability,
+    barrier_probability, bootstrap_ci, deflated_sharpe, describe_returns,
+    expected_max_sharpe, feasible_target, grade_trade, kelly_fraction,
+    minimum_safe_stop, minimum_track_record, noise_stop_probability,
     recommended_risk_fraction, risk_of_ruin,
 )
 
@@ -159,3 +160,77 @@ def test_grade_accepts_a_plan_drawn_with_room():
 def test_grade_refuses_an_impossible_geometry():
     prof = describe_returns(_walk())
     assert grade_trade(entry=100, target=90, stop=95, profile=prof)["ok"] is False
+
+
+# ---------------------------------------------------------- backtest honesty
+def test_luck_alone_produces_a_good_looking_sharpe_if_you_try_enough_things():
+    from advisor.stats import expected_max_sharpe
+    assert expected_max_sharpe(1) == 0.0
+    assert expected_max_sharpe(1000) > expected_max_sharpe(100) > expected_max_sharpe(10)
+
+
+def test_deflated_sharpe_takes_annualised_and_converts_internally():
+    # The units trap: the underlying statistic is per-period, the number people
+    # quote is annualised. Passing the same value with different period counts
+    # must not produce the same answer.
+    a = deflated_sharpe(2.0, 1000, trials=50, periods_per_year=250)
+    b = deflated_sharpe(2.0, 1000, trials=50, periods_per_year=12)
+    assert a["deflated_sharpe"] != b["deflated_sharpe"]
+    assert a["observed_annual_sharpe"] == 2.0
+
+
+def test_the_bar_rises_with_the_number_of_variants_tried():
+    one = deflated_sharpe(1.5, 1000, trials=1)
+    many = deflated_sharpe(1.5, 1000, trials=2000)
+    assert one["passes"] and not many["passes"], \
+        "the same backtest must stop being evidence once you admit how many you ran"
+    assert many["benchmark_annual_from_luck"] > one["benchmark_annual_from_luck"]
+
+
+def test_a_merely_good_sharpe_does_not_survive_a_wide_search():
+    d = deflated_sharpe(1.3, 1000, trials=200)
+    assert not d["passes"]
+    assert d["benchmark_annual_from_luck"] > 1.3, \
+        "200 worthless strategies would have produced better than this by luck"
+
+
+def test_negative_skew_and_fat_tails_make_the_bar_harder():
+    plain = deflated_sharpe(2.4, 1000, trials=200)
+    ugly = deflated_sharpe(2.4, 1000, trials=200, skew=-1.5, excess_kurtosis=8)
+    assert ugly["deflated_sharpe"] < plain["deflated_sharpe"]
+
+
+def test_track_record_length_falls_as_the_edge_rises():
+    weak = minimum_track_record(0.5)["years"]
+    strong = minimum_track_record(2.0)["years"]
+    assert weak > strong > 0
+    assert weak > 5, "a half-Sharpe edge needs many years before it is believable"
+    assert minimum_track_record(0.0) is None
+
+
+def test_ugly_return_shape_lengthens_the_record_needed():
+    clean = minimum_track_record(1.0)["years"]
+    ugly = minimum_track_record(1.0, skew=-1.5, excess_kurtosis=6)["years"]
+    assert ugly > clean
+
+
+def test_bootstrap_interval_includes_zero_when_the_edge_is_not_established():
+    import random
+    rng = random.Random(1)
+    noise = [rng.gauss(0.0005, 0.03) for _ in range(120)]
+    ci = bootstrap_ci(noise)
+    assert ci["includes_zero"]
+    assert "no edge" in ci["reading"]
+
+
+def test_bootstrap_separates_a_real_edge_from_zero():
+    import random
+    rng = random.Random(2)
+    strong = [rng.gauss(0.02, 0.02) for _ in range(300)]
+    ci = bootstrap_ci(strong)
+    assert not ci["includes_zero"]
+    assert ci["low"] < ci["point"] < ci["high"]
+
+
+def test_too_few_trades_gets_no_interval_at_all():
+    assert bootstrap_ci([0.01] * 10) is None
