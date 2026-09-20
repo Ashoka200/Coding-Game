@@ -8,8 +8,8 @@
 // the deflated Sharpe is told about all three — so a result that only looks
 // good because it was the best of three is reported as exactly that.
 
-import { backtest, buildScores, deflatedSharpe, shuffleTest, SIGNALS,
-         walkForward } from "./_backtest.mjs";
+import { backtest, buildScores, combinationReport, combineSignals,
+         deflatedSharpe, shuffleTest, SIGNALS, walkForward } from "./_backtest.mjs";
 import { getSeries, getUniverse, metaStore } from "./_store.mjs";
 
 const RESULT_KEY = "backtest_result";
@@ -62,11 +62,16 @@ export default async (req) => {
   for (const s of symbols) prices[s] = prices[s].slice(prices[s].length - shortest);
 
   const signalKeys = Object.keys(SIGNALS);
-  const trials = signalKeys.length;
+  // The combination is a fourth thing tried, and counting it is the difference
+  // between honest multiple-testing correction and a flattering one.
+  const trials = signalKeys.length + 1;
   const results = [];
+  const scoreSets = {};
+  const byName = {};
 
   for (const key of signalKeys) {
     const scores = buildScores(prices, key, REBALANCE);
+    scoreSets[key] = scores;
     const rebalances = Object.keys(scores).length;
     if (rebalances < 12) {
       results.push({ signal: key, ok: false,
@@ -113,6 +118,38 @@ export default async (req) => {
         : "not evidence — " + Object.entries(checks)
             .filter(([, v]) => v === false).map(([k]) => k).join(", "),
     });
+    byName[key] = r;
+  }
+
+  // What the signals are worth together. The average correlation measured here
+  // replaces the 0.35 that has been driving every reachability verdict in this
+  // system since it was written.
+  let combination = { ok: false, why: "not enough usable signals" };
+  const usable = Object.keys(scoreSets).filter((k) => Object.keys(scoreSets[k]).length >= 12);
+  if (usable.length >= 2) {
+    const combinedScores = combineSignals(...usable.map((k) => scoreSets[k]));
+    const cfg = { topN: 20, rebalanceEvery: REBALANCE };
+    const rc = Object.keys(combinedScores).length >= 12
+      ? backtest(combinedScores, prices, cfg) : null;
+    combination = combinationReport(
+      Object.fromEntries(usable.map((k) => [k, byName[k]])), rc);
+    if (rc) {
+      const shc = shuffleTest(combinedScores, prices, cfg, 24);
+      const dsc = deflatedSharpe(rc.sharpe, rc.periods, trials, PERIODS_PER_YEAR);
+      const wfc = walkForward(combinedScores, prices, 4, cfg);
+      combination.combined_run = {
+        periods: rc.periods, netAnnual: rc.netAnnual, sharpe: rc.sharpe,
+        maxDrawdown: rc.maxDrawdown, turnover: rc.turnover, costDrag: rc.costDrag,
+        skillAboveChance: shc.skillAboveChance, shufflePasses: shc.passes,
+        deflatedSharpe: dsc.deflated, deflatedPasses: dsc.passes,
+        foldsPositive: wfc.ok ? wfc.positiveFolds : null,
+        verdict: (shc.passes && dsc.passes && wfc.ok && wfc.positiveFolds >= 3)
+          ? "this is evidence" : "not evidence",
+      };
+    }
+    combination.what_this_replaces =
+      "Every reachability verdict in this system has been using an assumed "
+      + "average signal correlation of 0.35. This is the measured figure.";
   }
 
   const payload = {
@@ -122,6 +159,7 @@ export default async (req) => {
     universe: { requested, used: symbols.length, skipped: skipped.length,
                 bars_each: shortest },
     trials_counted: trials,
+    combination,
     rebalance_days: REBALANCE,
     costs_round_trip: 0.00422,
     results,

@@ -239,3 +239,90 @@ def test_the_too_few_checks_fallback_can_actually_fire():
     a = assess(empty, variants_tried=1)
     assert a["checks_run"] < 2
     assert "too few" in a["verdict"]
+
+
+# ------------------------------------------------------- combining signals
+from advisor.portfolio_backtest import (  # noqa: E402
+    combination_report, combine_signals, correlation, zscore_row,
+)
+
+
+def test_zscore_makes_incomparable_signals_comparable():
+    # One signal in units of return, another in units of volatility. Averaging
+    # raw would let the larger-spread one decide everything.
+    row = {f"S{i}": i / 10 for i in range(20)}
+    z = zscore_row(row)
+    vals = list(z.values())
+    assert abs(sum(vals) / len(vals)) < 1e-9, "centred"
+    assert max(vals) <= 3.0 and min(vals) >= -3.0, "winsorised at three sigma"
+
+
+def test_zscore_refuses_a_cross_section_too_thin_to_standardise():
+    assert zscore_row({"A": 1.0, "B": 2.0}) == {}
+    assert zscore_row({f"S{i}": 5.0 for i in range(20)}) == {}, "no spread, no z-score"
+
+
+def test_an_outlier_cannot_decide_the_whole_portfolio():
+    row = {f"S{i}": 0.01 * i for i in range(30)}
+    row["BROKEN"] = 1e9
+    z = zscore_row(row)
+    assert z["BROKEN"] == 3.0, "clipped, not allowed to dominate"
+
+
+def test_combining_keeps_only_dates_and_names_every_signal_scored():
+    a = {10: {f"S{i}": i for i in range(20)}, 20: {f"S{i}": i for i in range(20)}}
+    b = {10: {f"S{i}": -i for i in range(20)}}          # no date 20
+    c = combine_signals(a, b)
+    assert set(c) == {10}, "a date one signal could not score is dropped"
+
+    a2 = {10: {f"S{i}": i for i in range(20)}}
+    b2 = {10: {f"S{i}": -i for i in range(15)}}
+    c2 = combine_signals(a2, b2)
+    assert set(c2[10]) == {f"S{i}" for i in range(15)}, \
+        "a name one signal could not score is dropped, never filled with zero"
+
+
+def test_two_opposite_signals_combine_to_nothing():
+    a = {10: {f"S{i}": i for i in range(20)}}
+    b = {10: {f"S{i}": -i for i in range(20)}}
+    c = combine_signals(a, b)
+    assert all(abs(v) < 1e-9 for v in c[10].values())
+
+
+def test_correlation_matches_the_obvious_cases():
+    xs = [i / 10 for i in range(20)]
+    assert abs(correlation(xs, xs) - 1.0) < 1e-9
+    assert abs(correlation(xs, [-x for x in xs]) + 1.0) < 1e-9
+    assert correlation([1, 2], [2, 3]) is None, "too short to correlate"
+    assert correlation([1.0] * 20, list(range(20))) is None, "no variation"
+
+
+def test_the_combination_report_measures_correlation_rather_than_assuming_it():
+    scores, prices, _ = build_world(edge=0.10, seed=41)
+    scores2, _, _ = build_world(edge=0.10, seed=42)
+    # Same price panel, two different score sets over it.
+    r1 = backtest(scores, prices)
+    r2 = backtest({t: scores2[t] for t in scores if t in scores2}, prices)
+    rep = combination_report({"a": r1, "b": r2})
+    assert rep["ok"]
+    assert -1 <= rep["average_correlation"] <= 1
+    assert rep["ceiling_however_many_signals"] > 0
+    assert "most_diversifying" in rep
+
+
+def test_the_report_refuses_with_only_one_usable_signal():
+    scores, prices, _ = build_world(edge=0.05)
+    r = backtest(scores, prices)
+    assert combination_report({"only": r})["ok"] is False
+
+
+def test_the_report_compares_theory_against_what_actually_happened():
+    scores, prices, _ = build_world(edge=0.10, seed=43)
+    scores2, _, _ = build_world(edge=0.10, seed=44)
+    common = {t: scores2[t] for t in scores if t in scores2}
+    r1, r2 = backtest(scores, prices), backtest(common, prices)
+    combined = backtest(combine_signals(scores, common), prices)
+    rep = combination_report({"a": r1, "b": r2}, combined)
+    assert "actual_combined_sharpe" in rep
+    assert "theory_vs_actual" in rep
+    assert isinstance(rep["beat_best_single"], bool)
