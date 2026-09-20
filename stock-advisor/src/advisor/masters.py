@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 
+from .calibrate import MarketContext
+
 
 @dataclass
 class Criterion:
@@ -77,6 +79,32 @@ def _le(value, threshold) -> bool | None:
     return None if value is None else value <= threshold
 
 
+def _c(ctx, metric, f, stance, fallback_passed, fallback_seen):
+    """Return (passed, seen) judged against live peers, or the fixed fallback."""
+    value = f.get(metric)
+    if ctx is not None and value is not None:
+        judged = ctx.meets(metric, value, stance, f.get("sector"))
+        if judged is not None:
+            return judged, ctx.describe(metric, value, f.get("sector"))
+    return fallback_passed, fallback_seen
+
+
+def _adapt(ctx, metric, value, stance, fallback_test, sector=None):
+    """Judge against today's peers when a market context exists, else the old
+    fixed threshold.
+
+    The stance is the doctrine and stays in the code: Damani is demanding on
+    debt, Buffett moderate, and that difference is what makes them different
+    investors. The level the stance corresponds to belongs to the market and is
+    read off the live cross-section.
+    """
+    if ctx is not None:
+        judged = ctx.meets(metric, value, stance, sector)
+        if judged is not None:
+            return judged, ctx.describe(metric, value, sector)
+    return fallback_test, None
+
+
 def _between(value, lo, hi) -> bool | None:
     return None if value is None else lo <= value <= hi
 
@@ -121,7 +149,7 @@ def _consistency(series: list[float] | None, min_years: int = 4) -> bool | None:
 # --------------------------------------------------------------------------
 # the lenses
 # --------------------------------------------------------------------------
-def qglp(f: dict) -> LensVerdict:
+def qglp(f: dict, ctx: MarketContext | None = None) -> LensVerdict:
     """Raamdeo Agrawal's QGLP — Quality, Growth, Longevity, Price.
 
     Agrawal's own ordering matters and is preserved here: price comes last. A
@@ -131,11 +159,13 @@ def qglp(f: dict) -> LensVerdict:
     hist = f.get("revenue_history")
     c = [
         Criterion("Quality of business — returns on capital",
-                  _ge(f.get("roce"), 0.15), _pct(f.get("roce")),
+                  *_c(ctx, "roce", f, "moderate",
+                      _ge(f.get("roce"), 0.15), _pct(f.get("roce"))),
                   "A business earning less on capital than it costs is shrinking "
                   "in real terms however fast revenue grows.", theme="returns"),
         Criterion("Quality of balance sheet — low debt",
-                  _le(f.get("debtToEquity"), 0.5), _num(f.get("debtToEquity")),
+                  *_c(ctx, "debtToEquity", f, "strict",
+                      _le(f.get("debtToEquity"), 0.5), _num(f.get("debtToEquity"))),
                   "Leverage is what turns a bad few quarters into a permanent loss.", theme="debt"),
         Criterion("Quality of earnings — profit converts to cash",
                   _ge(f.get("cashConversion"), 0.75), _num(f.get("cashConversion")),
@@ -156,7 +186,8 @@ def qglp(f: dict) -> LensVerdict:
                   else f"{len(hist)} years on record",
                   "Sustained compounding is the whole thesis; one good year is noise.", theme="consistency"),
         Criterion("Longevity — reinvests at high returns",
-                  _ge(f.get("roe"), 0.15), _pct(f.get("roe")),
+                  *_c(ctx, "roe", f, "moderate",
+                      _ge(f.get("roe"), 0.15), _pct(f.get("roe"))),
                   "A compounder must be able to put retained profit back to work "
                   "at the same rate it earned it.", theme="returns"),
         Criterion("Price — not paying for a decade in advance",
@@ -172,7 +203,7 @@ def qglp(f: dict) -> LensVerdict:
         verdict=_verdict(s, j, u, len(c)))
 
 
-def jhunjhunwala(f: dict) -> LensVerdict:
+def jhunjhunwala(f: dict, ctx: MarketContext | None = None) -> LensVerdict:
     """Rakesh Jhunjhunwala's method, as he described it repeatedly.
 
     Two things distinguish it from a pure value screen and both are encoded.
@@ -193,11 +224,13 @@ def jhunjhunwala(f: dict) -> LensVerdict:
                   "He bought growth early and held it; 20% compounding doubles "
                   "money in under four years.", theme="growth"),
         Criterion("High return on equity",
-                  _ge(f.get("roe"), 0.18), _pct(f.get("roe")),
+                  *_c(ctx, "roe", f, "strict",
+                      _ge(f.get("roe"), 0.18), _pct(f.get("roe"))),
                   "The engine of compounding — a low-ROE business cannot compound "
                   "however cheap it looks.", theme="returns"),
         Criterion("Debt under control",
-                  _le(f.get("debtToEquity"), 0.6), _num(f.get("debtToEquity")),
+                  *_c(ctx, "debtToEquity", f, "lenient",
+                      _le(f.get("debtToEquity"), 0.6), _num(f.get("debtToEquity"))),
                   "He concentrated heavily, and concentration plus leverage is how "
                   "investors are permanently removed from the game.", theme="debt"),
         Criterion("Durable demand — needed in ten years",
@@ -206,7 +239,8 @@ def jhunjhunwala(f: dict) -> LensVerdict:
                   "His stated test: if people need it today they will need it in "
                   "ten years. Jewellery, medicines, cars, insurance.", theme="demand"),
         Criterion("Not already priced for perfection",
-                  _le(f.get("pe"), 40), _num(f.get("pe"), 1),
+                  *_c(ctx, "pe", f, "lenient",
+                      _le(f.get("pe"), 40), _num(f.get("pe"), 1)),
                   "He bought before the story was consensus, not after.", theme="price"),
         Criterion("The tape agrees — above its long-term average",
                   f.get("above200dma"), "not computed"
@@ -225,18 +259,21 @@ def jhunjhunwala(f: dict) -> LensVerdict:
         verdict=_verdict(s, j, u, len(c)))
 
 
-def buffett(f: dict) -> LensVerdict:
+def buffett(f: dict, ctx: MarketContext | None = None) -> LensVerdict:
     """Owner-earnings: would you buy the whole business at this price?"""
     c = [
         Criterion("Consistently high return on equity",
-                  _ge(f.get("roe"), 0.15), _pct(f.get("roe")),
+                  *_c(ctx, "roe", f, "moderate",
+                      _ge(f.get("roe"), 0.15), _pct(f.get("roe"))),
                   "The single number that best separates a franchise from a "
                   "commodity.", theme="returns"),
         Criterion("Little debt",
-                  _le(f.get("debtToEquity"), 0.5), _num(f.get("debtToEquity")),
+                  *_c(ctx, "debtToEquity", f, "moderate",
+                      _le(f.get("debtToEquity"), 0.5), _num(f.get("debtToEquity"))),
                   "A good business with too much debt is a bad investment.", theme="debt"),
         Criterion("Wide, durable margins",
-                  _ge(f.get("netMargin"), 0.10), _pct(f.get("netMargin")),
+                  *_c(ctx, "netMargin", f, "moderate",
+                      _ge(f.get("netMargin"), 0.10), _pct(f.get("netMargin"))),
                   "Margin is pricing power made visible.", theme="margin"),
         Criterion("Interest comfortably covered",
                   _ge(f.get("interestCover"), 5), _num(f.get("interestCover"), 1),
@@ -245,7 +282,8 @@ def buffett(f: dict) -> LensVerdict:
                   _ge(f.get("cashConversion"), 0.80), _num(f.get("cashConversion")),
                   "Owner earnings, not reported earnings, are what an owner gets.", theme="cash"),
         Criterion("Priced sensibly",
-                  _le(f.get("pe"), 25), _num(f.get("pe"), 1),
+                  *_c(ctx, "pe", f, "moderate",
+                      _le(f.get("pe"), 25), _num(f.get("pe"), 1)),
                   "Price is what you pay; value is what you get.", theme="price"),
     ]
     s, j, u = _score(c)
@@ -257,7 +295,7 @@ def buffett(f: dict) -> LensVerdict:
         verdict=_verdict(s, j, u, len(c)))
 
 
-def lynch(f: dict) -> LensVerdict:
+def lynch(f: dict, ctx: MarketContext | None = None) -> LensVerdict:
     """Growth at a reasonable price, with Lynch's own upper bound on growth.
 
     The detail usually dropped from PEG screens: Lynch distrusted growth above
@@ -273,7 +311,8 @@ def lynch(f: dict) -> LensVerdict:
                   _between(g, 0.15, 0.50), _pct(g),
                   "Above roughly 50% growth invites competition and cannot last.", theme="growth"),
         Criterion("Balance sheet not stretched",
-                  _le(f.get("debtToEquity"), 0.5), _num(f.get("debtToEquity")),
+                  *_c(ctx, "debtToEquity", f, "moderate",
+                      _le(f.get("debtToEquity"), 0.5), _num(f.get("debtToEquity"))),
                   "Debt is what stops a good story surviving a bad year.", theme="debt"),
         Criterion("Can pay its near-term bills",
                   _ge(f.get("currentRatio"), 1.5), _num(f.get("currentRatio")),
@@ -287,7 +326,7 @@ def lynch(f: dict) -> LensVerdict:
         verdict=_verdict(s, j, u, len(c)))
 
 
-def damani(f: dict) -> LensVerdict:
+def damani(f: dict, ctx: MarketContext | None = None) -> LensVerdict:
     """Radhakishan Damani's patience: dull, cash-generative, barely leveraged.
 
     The lens that most often disagrees with the others, and usefully so — it
@@ -297,10 +336,12 @@ def damani(f: dict) -> LensVerdict:
     hist = f.get("revenue_history")
     c = [
         Criterion("Almost no debt",
-                  _le(f.get("debtToEquity"), 0.3), _num(f.get("debtToEquity")),
+                  *_c(ctx, "debtToEquity", f, "demanding",
+                      _le(f.get("debtToEquity"), 0.3), _num(f.get("debtToEquity"))),
                   "Survives every cycle without needing anyone's permission.", theme="debt"),
         Criterion("High return on capital employed",
-                  _ge(f.get("roce"), 0.18), _pct(f.get("roce")),
+                  *_c(ctx, "roce", f, "strict",
+                      _ge(f.get("roce"), 0.18), _pct(f.get("roce"))),
                   "Efficiency of the whole business, not just the equity slice.", theme="returns"),
         Criterion("Grows every year, dully",
                   _consistency(hist, min_years=5),
@@ -312,7 +353,8 @@ def damani(f: dict) -> LensVerdict:
                   "A business that cannot pay anything out for years is "
                   "reinvesting or lying.", theme="payout"),
         Criterion("Not a wild ride",
-                  _le(f.get("annualVol"), 0.40), _pct(f.get("annualVol")),
+                  *_c(ctx, "annualVol", f, "moderate",
+                      _le(f.get("annualVol"), 0.40), _pct(f.get("annualVol"))),
                   "Volatility you can sit through is what makes a decades-long "
                   "hold possible at all.", theme="volatility"),
     ]
@@ -345,9 +387,12 @@ def derive(f: dict) -> dict:
     return out
 
 
-def apply_all(f: dict) -> list[LensVerdict]:
+def apply_all(f: dict, ctx: MarketContext | None = None) -> list[LensVerdict]:
+    """Run every lens. With a market context the thresholds are read off today's
+    cross-section; without one they fall back to the fixed levels, so a thin
+    data day degrades to the old behaviour rather than to no behaviour."""
     facts = derive(f)
-    return [lens(facts) for lens in LENSES]
+    return [lens(facts, ctx) for lens in LENSES]
 
 
 def consensus(verdicts: list[LensVerdict]) -> dict:
