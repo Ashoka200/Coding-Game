@@ -109,6 +109,24 @@ def main() -> None:
 
     sub.add_parser("status")
 
+    # --- the engines that had no way in until now ---
+    ln = sub.add_parser("lenses", help="what five great investors would say")
+    ln.add_argument("symbol")
+
+    tg = sub.add_parser("target", help="what a return target actually requires")
+    tg.add_argument("--annual", type=float, default=0.50,
+                    help="target annual return, e.g. 0.50 for 50%%")
+
+    gr = sub.add_parser("grade", help="grade a trade plan statistically")
+    gr.add_argument("symbol")
+    gr.add_argument("--entry", type=float, required=True)
+    gr.add_argument("--target", type=float, required=True)
+    gr.add_argument("--stop", type=float, required=True)
+
+    mc = sub.add_parser("microcap", help="can this small-cap position be exited?")
+    mc.add_argument("symbol")
+    mc.add_argument("--amount", type=float, required=True)
+
     args = p.parse_args()
 
     try:
@@ -125,7 +143,15 @@ def main() -> None:
 
 
 def _dispatch(p, args) -> None:
-    if args.cmd == "init-db":
+    if args.cmd == "lenses":
+        _cmd_lenses(args)
+    elif args.cmd == "target":
+        _cmd_target(args)
+    elif args.cmd == "grade":
+        _cmd_grade(args)
+    elif args.cmd == "microcap":
+        _cmd_microcap(args)
+    elif args.cmd == "init-db":
         db.init_db(); print(f"initialized {db.config.DB_PATH}")
     elif args.cmd == "update-universe":
         from .universe import update_universe
@@ -258,6 +284,147 @@ def _dispatch(p, args) -> None:
             ]:
                 print(f"{label}: {conn.execute(q).fetchone()[0]}")
 
+
+
+# --------------------------------------------------------------------------
+# the analytical surface — engines that were built but unreachable
+# --------------------------------------------------------------------------
+def _facts_for(symbol: str) -> dict:
+    """Assemble what the lenses need from whatever the store actually holds."""
+    from .fundamentals import latest_fundamentals
+    try:
+        f = latest_fundamentals(symbol) or {}
+    except Exception:
+        f = {}
+    return dict(f, symbol=symbol)
+
+
+def _cmd_lenses(args) -> None:
+    from .calibrate import build_context
+    from .failures import discount_lenses
+    from .masters import apply_all, consensus
+
+    facts = _facts_for(args.symbol)
+    # A live cross-section if the store has one; otherwise the fixed fallbacks.
+    try:
+        from .fundamentals import all_latest_fundamentals
+        universe = all_latest_fundamentals()
+    except Exception:
+        universe = []
+    ctx = build_context(universe, None, as_of="today") if universe else None
+
+    verdicts = apply_all(facts, ctx)
+    print(f"\n{args.symbol} — five investors\n" + "-" * 58)
+    for v in verdicts:
+        score = "  n/a" if v.score is None else f"{v.score * 100:4.0f}%"
+        print(f"{score}  {v.author:<22} {v.verdict}")
+        for c in v.criteria:
+            mark = "?" if c.passed is None else ("+" if c.passed else "-")
+            print(f"         {mark} {c.name}: {c.seen}")
+        print()
+
+    con = consensus(verdicts)
+    if con["ok"]:
+        print(f"Consensus: {con['stance']}")
+        if con["unanimous_weaknesses"]:
+            print(f"  every lens that tested them fails on: "
+                  f"{', '.join(con['unanimous_weaknesses'])}")
+
+    d = discount_lenses(facts, verdicts)
+    print(f"\nFailure modes: {d['headline']}")
+    for m in d["fired"]:
+        print(f"  ! {m['name']} ({m['severity']}) — {m['evidence']}")
+        print(f"    {m['what_to_do']}")
+    if d["suspended_authors"]:
+        print(f"  endorsements to discount: {', '.join(d['suspended_authors'])}")
+
+
+def _cmd_target(args) -> None:
+    from .ensemble import requirements_for
+    from .stats import feasible_target
+
+    r = requirements_for(args.annual)
+    f = feasible_target((1 + args.annual) ** (1 / 250) - 1)
+    print(f"\nA target of {args.annual * 100:.0f}% a year\n" + "-" * 58)
+    print(f"  requires a Sharpe ratio of        {r['required_sharpe']:.2f}")
+    print(f"  {f.verdict}")
+    if r["independent_decisions_per_year"]:
+        print(f"  independent decisions per year    "
+              f"{r['independent_decisions_per_year']:.0f} "
+              f"({r['independent_decisions_per_trading_day']:.1f} a day)")
+    sig = r["signal_requirement"]
+    if sig.get("reachable"):
+        print(f"  different signals needed          {sig['signals_needed']}")
+    else:
+        print(f"  {sig['why']}")
+        for path in (r.get("paths_if_unreachable") or []):
+            print(f"    - signals of Sharpe {path['single_signal_sharpe']:.1f} "
+                  f"need correlation below {path['max_average_correlation']:.2f} "
+                  f"({path['note']})")
+
+
+def _cmd_grade(args) -> None:
+    from .stats import describe_returns, grade_trade
+    closes = _closes_for(args.symbol)
+    prof = describe_returns(closes) if closes else None
+    if prof is None:
+        print(f"{args.symbol}: not enough price history to grade a plan")
+        return
+    g = grade_trade(args.entry, args.target, args.stop, prof)
+    if not g["ok"]:
+        print(g["why"]); return
+    o = g["odds"]
+    print(f"\n{args.symbol} — entry {args.entry}, target {args.target}, "
+          f"stop {args.stop}\n" + "-" * 58)
+    print(f"  reward to risk                 {o['reward_to_risk']:.2f} : 1")
+    print(f"  chance of target before stop   {o['p_target_first'] * 100:.0f}%")
+    print(f"  breakeven win rate needed      {o['breakeven_win_rate'] * 100:.0f}%")
+    print(f"  noise alone reaches this stop  {g['noise_stop_probability'] * 100:.0f}% "
+          f"of the time")
+    print(f"  closest sensible stop          "
+          f"{g['minimum_safe_stop_pct'] * 100:.1f}% away")
+    print(f"  risk per trade                 "
+          f"{g['sizing']['recommended'] * 100:.2f}% of capital")
+    print(f"\n  {g['verdict']}")
+    for flag in g["flags"]:
+        print(f"    ! {flag}")
+
+
+def _cmd_microcap(args) -> None:
+    from .microcap import assess
+    facts = _facts_for(args.symbol)
+    facts.setdefault("closes", _closes_for(args.symbol))
+    r = assess(facts, args.amount)
+    e = r["exit"]
+    print(f"\n{args.symbol} at {args.amount:,.0f}\n" + "-" * 58)
+    print(f"  {r['headline']}\n")
+    print(f"  sessions to exit            {e['days_to_exit']:.1f}")
+    print(f"  round trip cost             {e['round_trip_cost_pct'] * 100:.1f}%")
+    print(f"  largest exitable position   {e['max_safe_position']:,.0f}")
+    print(f"  circuit band                {e['circuit_band'] * 100:.0f}% "
+          f"({e['locked_days_for_30pct_fall']:.0f} locked days for a 30% fall)")
+    print(f"  surveillance                {r['surveillance']['note']}")
+    for w in e["warnings"]:
+        print(f"    ! {w}")
+    if r["integrity"]["fired"]:
+        for m in r["integrity"]["fired"]:
+            print(f"    ! {m['marker']} — {m['why']}")
+    print(f"\n  {r['position_advice']}")
+    if r["cost_note"]:
+        print(f"  {r['cost_note']}")
+
+
+def _closes_for(symbol: str) -> list:
+    try:
+        import pandas as pd
+        from . import db
+        with db.connect() as con:
+            rows = con.execute(
+                "SELECT close FROM prices WHERE symbol=? ORDER BY date", (symbol,)
+            ).fetchall()
+        return [r[0] for r in rows if r[0]]
+    except Exception:
+        return []
 
 if __name__ == "__main__":
     main()
