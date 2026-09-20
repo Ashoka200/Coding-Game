@@ -550,7 +550,14 @@
           p.charAt(0).toUpperCase() + p.slice(1) + "</button>"; }).join("") +
       "</div>" +
       '<button class="primary" id="buildPlan">Build my plan</button>' +
-      '<div id="planOut" style="margin-top:18px"></div></div>';
+      '<div id="planOut" style="margin-top:18px"></div></div>' +
+      sectionHead("What return are you aiming for?",
+        "before the plan — because a target is a claim that can be checked") +
+      '<div class="card"><div class="row" style="align-items:center;gap:14px">' +
+      '<input id="tgt" class="mono" type="range" min="1" max="3000" value="20" ' +
+      'step="1" style="flex:1;accent-color:var(--accent)">' +
+      '<span class="mono" id="tgtOut" style="font-size:20px;white-space:nowrap"></span>' +
+      "</div><div id='tgtSay' style='margin-top:14px'></div></div>";
 
     host.querySelectorAll("[data-prof]").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -565,6 +572,51 @@
       el("amt").value = v ? v.toLocaleString("en-IN") : "";
     });
     el("buildPlan").addEventListener("click", buildPlan);
+
+    var tgt = el("tgt");
+    if (tgt) {
+      tgt.addEventListener("input", sayTarget);
+      sayTarget();
+    }
+  }
+
+  /* A return target is not a preference, it is a claim about a Sharpe ratio —
+     and that claim can be checked. The ceiling the arithmetic rests on: at the
+     best possible leverage, long-run compound growth cannot exceed Sharpe
+     squared over two, per year. So every target names the skill it requires,
+     and the number is checkable rather than arguable. */
+  function sayTarget() {
+    var ST = window.ADV_STATS;
+    if (!ST) return;
+    var basisPointsPerDay = +el("tgt").value;          // 1 = 0.01% a day
+    var daily = basisPointsPerDay / 10000;
+    var f = ST.feasible(daily, S.amount || 1000000);
+    el("tgtOut").innerHTML = (daily * 100).toFixed(2) + "%<span class='muted'> a day</span>";
+
+    var annual = f.targetAnnual;
+    var annualTxt = annual < 100
+      ? (annual * 100).toFixed(0) + "% a year"
+      : annual.toExponential(1).replace("e+", " × 10^") + " times your money a year";
+
+    var body = "<p style='margin:0 0 10px'>That compounds to <b>" + annualTxt +
+      "</b>, which requires a <b>Sharpe ratio of " + f.requiredSharpe.toFixed(2) +
+      "</b>.</p><p style='margin:0 0 10px'>" + esc(f.verdict) + "</p>";
+
+    if (f.requiredSharpe > 7 && f.daysToWorldGdp) {
+      body += "<p style='margin:0 0 10px'>Compounded from " + inr(S.amount || 1000000) +
+        ", it would pass the entire world economy in about <b>" +
+        Math.round(f.daysToWorldGdp) + " trading days</b>. That is the clearest sign " +
+        "a target is not a stretch but an arithmetic impossibility.</p>";
+    }
+    body += "<p class='muted' style='margin:0'>For scale: a good discretionary manager " +
+      "runs a Sharpe near 0.8, an excellent systematic fund 1.5 to 2.5, and the best " +
+      "record ever documented — Medallion — about 7, at which point it stopped taking " +
+      "outside money because the edge would not scale. A Sharpe of 2 run perfectly is " +
+      (f.atSharpe2Daily * 100).toFixed(2) + "% a day.</p>";
+
+    el("tgtSay").innerHTML = '<div class="notice ' +
+      (f.tone === "up" ? "info" : f.tone === "warn" ? "warn" : "warn") + '">' +
+      "<span class='k'>What this target implies</span>" + body + "</div>";
   }
 
   function buildPlan() {
@@ -604,13 +656,33 @@
               var stop = Math.max(q.swingLow20, q.last - cfg.stopMult * q.atr14);
               if (stop >= q.last) stop = q.last - cfg.stopMult * q.atr14;
               var qty = Math.floor(per / q.last);
+              // Is this stop far enough out that ordinary noise cannot reach
+              // it? A stop inside the noise band is not risk control, it is a
+              // schedule for paying brokerage.
+              var grade = null, ST = window.ADV_STATS;
+              if (ST && q.atr14 && q.last) {
+                var dailyVol = q.atr14 / q.last;      // ATR is a good stand-in for daily sigma
+                var stopPct = (q.last - stop) / q.last;
+                grade = { noise: ST.noiseStop(stopPct, dailyVol, 20),
+                          minSafe: ST.minSafeStop(dailyVol, 20) };
+              }
+              var qty = Math.floor(per / q.last);
               if (qty > 0) lines.push({ symbol:q.symbol, role:"Stock pick",
                 desc:"in an uptrend", qty:qty, price:Math.round(q.last * 100) / 100,
-                value:qty * q.last, stop:Math.round(stop * 100) / 100 });
+                value:qty * q.last, stop:Math.round(stop * 100) / 100, grade:grade });
             });
           } else {
             notes.push("No stock passed the trend filter today, so that sleeve stays in cash.");
           }
+        }
+        var tooTight = lines.filter(function (l) {
+          return l.grade && l.grade.noise > 0.4; });
+        if (tooTight.length) {
+          notes.push(tooTight.map(function (l) { return l.symbol; }).join(", ") +
+            (tooTight.length > 1 ? " have exit prices" : " has an exit price") +
+            " that ordinary volatility reaches more than 40% of the time. That is " +
+            "not protection — it is a near-certainty of being shaken out of a " +
+            "position that was going to work. Widen the exit and buy fewer shares.");
         }
         var invested = lines.reduce(function (t, l) { return t + l.value; }, 0);
         S.plan = { lines: lines, amount: S.amount, cash: S.amount - invested };
@@ -626,7 +698,10 @@
               '<td class="num">' + num(l.price) + "</td>" +
               '<td class="num">' + num(l.value, 0) + "</td>" +
               '<td class="num ' + (l.stop ? "neg" : "muted") + '">' +
-              (l.stop ? num(l.stop) : "hold") + "</td></tr>";
+              (l.stop ? num(l.stop) : "hold") +
+              (l.grade ? "<div class='sub'>noise reaches it " +
+                Math.round(l.grade.noise * 100) + "% of the time</div>" : "") +
+              "</td></tr>";
           }).join("") +
           "<tr><td class='muted'>Cash kept back</td><td><span class='pill mut'>Cash</span>" +
           "</td><td></td><td></td><td class='num'>" + num(S.plan.cash, 0) +
