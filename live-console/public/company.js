@@ -372,10 +372,116 @@
     return box;
   }
 
+  /* ---------- the five investors, and where their methods break ---------- */
+  function investors(d) {
+    var L = window.ADV_LENSES;
+    var wrap = h("div");
+    if (!L || !d.fundamentals) return wrap;
+
+    var verdicts = L.applyAll(d.fundamentals);
+    var judged = verdicts.filter(function (v) { return v.score !== null; });
+    if (!judged.length) {
+      wrap.appendChild(gap("What five great investors would say",
+        "None of their criteria could be judged — the fundamentals needed " +
+        "(returns on capital, debt, cash conversion) are not available for this " +
+        "company yet."));
+      return wrap;
+    }
+
+    wrap.appendChild(sectionHead("What five great investors would say",
+      "where they disagree matters more than where they agree"));
+
+    var card = h("div", "card");
+    var rows = verdicts.map(function (v) {
+      var pctTxt = v.score === null ? "—" : Math.round(v.score * 100) + "%";
+      var tone = v.score === null ? "mut"
+               : v.score >= 0.6 ? "up" : v.score < 0.35 ? "down" : "warn";
+      var det = h("details", "why");
+      var sum = h("summary");
+      sum.innerHTML = "<span class='pill " + tone + "'>" + pctTxt + "</span> " +
+        "<b style='color:var(--ink)'>" + esc(v.author) + "</b> — " + esc(v.verdict);
+      det.appendChild(sum);
+      var ol = h("ol", "chain");
+      v.criteria.forEach(function (c) {
+        var li = h("li", c.passed === false ? "key" : null);
+        var mark = c.passed === null ? "unknown" : (c.passed ? "passes" : "fails");
+        li.innerHTML = "<span class='stage'>" + mark + " · " + esc(c.theme) +
+          "</span><b>" + esc(c.name) + "</b> — " + esc(c.seen) +
+          "<div class='muted' style='margin-top:3px'>" + esc(c.why) + "</div>";
+        ol.appendChild(li);
+      });
+      det.appendChild(ol);
+      return det;
+    });
+    rows.forEach(function (r) { card.appendChild(r); });
+
+    var con = L.consensus(verdicts);
+    if (con.ok) {
+      var foot = h("p", "muted");
+      foot.style.cssText = "margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line)";
+      foot.innerHTML = "<b style='color:var(--ink)'>" + esc(con.stance) + "</b>" +
+        (con.unanimous_weaknesses.length
+          ? " Every lens that tested them fails on: " +
+            esc(con.unanimous_weaknesses.join(", ")) + "."
+          : "");
+      card.appendChild(foot);
+    }
+    wrap.appendChild(card);
+
+    /* The failure modes. A lens cannot see its own blind spot, so this is the
+       only place an endorsement gets withdrawn. */
+    var dis = L.discount(d.fundamentals, verdicts);
+    wrap.appendChild(sectionHead("Where these methods break",
+      "each failure is the method's own strength seen from the other side"));
+
+    var fcard = h("div", dis.fired.length ? "card" : "card");
+    var head = h("p");
+    head.style.cssText = "margin:0 0 12px";
+    head.innerHTML = "<b>" + esc(dis.headline) + "</b>";
+    fcard.appendChild(head);
+
+    dis.fired.forEach(function (m) {
+      var box = h("div", "notice " + (m.severity === "serious" ? "warn" : "info"));
+      box.innerHTML = "<span class='k'>" + esc(m.name) + " · " + esc(m.severity) +
+        "</span><p style='margin:0 0 8px'>" + esc(m.evidence) + "</p>" +
+        "<p style='margin:0 0 8px'>" + esc(m.mechanism) + "</p>" +
+        "<p style='margin:0'><b>" + esc(m.what_to_do) + "</b></p>";
+      fcard.appendChild(box);
+    });
+
+    if (Object.keys(dis.suspended_authors).length) {
+      var sus = h("p", "muted");
+      sus.style.cssText = "margin:12px 0 0";
+      sus.innerHTML = "Discount these endorsements while that holds: <b>" +
+        esc(Object.keys(dis.suspended_authors).join(", ")) + "</b>." +
+        (dis.endorsements_still_standing.length
+          ? " Still standing: " + esc(dis.endorsements_still_standing.join(", ")) + "."
+          : "");
+      fcard.appendChild(sus);
+    }
+    if (dis.untestable.length) {
+      var un = h("p", "muted");
+      un.style.cssText = "margin:10px 0 0";
+      un.textContent = "Could not be tested for want of data: " +
+        dis.untestable.join(", ") + ".";
+      fcard.appendChild(un);
+    }
+    wrap.appendChild(fcard);
+    return wrap;
+  }
+
+  function sectionHead(t, note) {
+    var d = h("div", "sectionhead");
+    d.innerHTML = "<h2>" + esc(t) + "</h2>" +
+      (note ? "<span class='note'>" + esc(note) + "</span>" : "");
+    return d;
+  }
+
   function render(host, d) {
     host.innerHTML = "";
     host.appendChild(header(d));
     host.appendChild(risks(d));
+    host.appendChild(investors(d));
     host.appendChild(worth(d));
     host.appendChild(business(d));
     host.appendChild(ownership(d));

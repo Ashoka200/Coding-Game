@@ -215,3 +215,21 @@ def test_untestable_modes_are_reported_not_hidden():
     d = discount_lenses({}, apply_all({}))
     assert len(d["untestable"]) == 6
     assert "could not be tested" in d["headline"]
+
+
+def test_the_peg_check_can_actually_fire_on_raw_facts():
+    # The bug this guards: PEG is derived, never supplied by a data source, so a
+    # check reading it against raw facts was permanently unreachable — and the
+    # cyclical PEG illusion is aimed at precisely these companies.
+    raw = {"sector": "Metals & mining", "pe": 9.0, "earningsCagr3y": 0.31,
+           "opMargin": 0.24, "opMargin_5y_high": 0.25}
+    modes = {m.name: m for m in run_all(raw)}
+    assert modes["Cyclical PEG illusion"].triggered is True, \
+        "a cyclical at peak margins on a PEG of 0.29 must fire this"
+
+
+def test_discount_also_sees_the_derived_peg():
+    raw = {"sector": "Metals & mining", "pe": 9.0, "earningsCagr3y": 0.31,
+           "opMargin": 0.24, "opMargin_5y_high": 0.25}
+    d = discount_lenses(raw, apply_all(raw))
+    assert "Peter Lynch" in d["suspended_authors"]
