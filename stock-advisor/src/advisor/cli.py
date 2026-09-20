@@ -112,6 +112,9 @@ def main() -> None:
     # --- the engines that had no way in until now ---
     ln = sub.add_parser("lenses", help="what five great investors would say")
     ln.add_argument("symbol")
+    ln.add_argument("--log", action="store_true",
+                    help="record this reading in the journal so the system can "
+                         "later measure how well its own scores predicted")
 
     tg = sub.add_parser("target", help="what a return target actually requires")
     tg.add_argument("--annual", type=float, default=0.50,
@@ -122,6 +125,8 @@ def main() -> None:
     gr.add_argument("--entry", type=float, required=True)
     gr.add_argument("--target", type=float, required=True)
     gr.add_argument("--stop", type=float, required=True)
+
+    sub.add_parser("calibration", help="what the system has measured about itself")
 
     mc = sub.add_parser("microcap", help="can this small-cap position be exited?")
     mc.add_argument("symbol")
@@ -149,6 +154,8 @@ def _dispatch(p, args) -> None:
         _cmd_target(args)
     elif args.cmd == "grade":
         _cmd_grade(args)
+    elif args.cmd == "calibration":
+        _cmd_calibration(args)
     elif args.cmd == "microcap":
         _cmd_microcap(args)
     elif args.cmd == "init-db":
@@ -330,6 +337,9 @@ def _cmd_lenses(args) -> None:
             print(f"  every lens that tested them fails on: "
                   f"{', '.join(con['unanimous_weaknesses'])}")
 
+    if getattr(args, "log", False):
+        _log_lens_reading(args.symbol, verdicts, con)
+
     d = discount_lenses(facts, verdicts)
     print(f"\nFailure modes: {d['headline']}")
     for m in d["fired"]:
@@ -339,11 +349,40 @@ def _cmd_lenses(args) -> None:
         print(f"  endorsements to discount: {', '.join(d['suspended_authors'])}")
 
 
+def _log_lens_reading(symbol: str, verdicts, con) -> None:
+    """Record the scores before the outcome is known.
+
+    This is the only way the correlation between lenses and the system's own
+    skill ever become measurable: they need a history of scores written down at
+    the moment of the call, not reconstructed afterwards when the answer is
+    already visible.
+    """
+    from .journal import log_decision
+
+    scored = {v.author: v.score for v in verdicts if v.score is not None}
+    if not scored:
+        print("\n  nothing scored, so nothing logged")
+        return
+    conviction = int(round(sum(scored.values()) / len(scored) * 100))
+    try:
+        did = log_decision(
+            symbol=symbol, book="investing", action="watch",
+            conviction=conviction,
+            thesis=(con.get("stance") if isinstance(con, dict) and con.get("ok")
+                    else "lens reading"),
+            engine_scores={"lenses": scored},
+        )
+        print(f"\n  logged as decision {did} (conviction {conviction}) — close it "
+              f"with an exit price later and it becomes evidence")
+    except Exception as exc:                     # noqa: BLE001
+        print(f"\n  could not log: {exc}")
+
+
 def _cmd_target(args) -> None:
-    from .ensemble import requirements_for
+    from .learning import requirements_with_measured
     from .stats import feasible_target
 
-    r = requirements_for(args.annual)
+    r = requirements_with_measured(args.annual)
     f = feasible_target((1 + args.annual) ** (1 / 250) - 1)
     print(f"\nA target of {args.annual * 100:.0f}% a year\n" + "-" * 58)
     print(f"  requires a Sharpe ratio of        {r['required_sharpe']:.2f}")
@@ -352,6 +391,10 @@ def _cmd_target(args) -> None:
         print(f"  independent decisions per year    "
               f"{r['independent_decisions_per_year']:.0f} "
               f"({r['independent_decisions_per_trading_day']:.1f} a day)")
+    print(f"  {r['confidence']}")
+    for name, p in r["parameter_provenance"].items():
+        mark = "measured" if p["source"] == "measured" else "ASSUMED"
+        print(f"    {name:<26} {p['value']:.3f}  [{mark}]")
     sig = r["signal_requirement"]
     if sig.get("reachable"):
         print(f"  different signals needed          {sig['signals_needed']}")
@@ -425,6 +468,31 @@ def _closes_for(symbol: str) -> list:
         return [r[0] for r in rows if r[0]]
     except Exception:
         return []
+
+
+def _cmd_calibration(args) -> None:
+    """What the system has actually learned about itself, as opposed to what it
+    was told to assume."""
+    from .learning import live_parameters
+
+    live = live_parameters()
+    print("\nCalibration\n" + "-" * 58)
+    print(f"  {live['summary']}")
+    print(f"  closed calls on record: {live['closed_calls']}\n")
+    for name, p in live["parameters"].items():
+        mark = "measured" if p["source"] == "measured" else "ASSUMED"
+        trust = "" if p["trustworthy"] else "  (not yet distinguishable from luck)"
+        print(f"  {name}")
+        print(f"    {p['value']:.4f}  [{mark}]  n={p['n']}{trust}")
+        print(f"    {p['note']}\n")
+    if live["decay"] and live["decay"].get("ok"):
+        d = live["decay"]
+        print(f"  signal decay: recent IC {d['recent_ic']:.3f} against "
+              f"{d['earlier_ic']:.3f} earlier")
+        print(f"    {d['action']}\n")
+    if live["warning"]:
+        print(f"  ! {live['warning']}")
+
 
 if __name__ == "__main__":
     main()
